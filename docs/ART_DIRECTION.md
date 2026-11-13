@@ -24,13 +24,16 @@ embers and a vast sense of scale.
 
 ## Global style suffix (appended to every prompt)
 
-> Painterly digital oil illustration, gritty grimdark military science fiction, visible
-> textured brushstrokes, muted desaturated palette with a single saturated accent color,
-> dramatic low-key chiaroscuro lighting with strong rim light, drifting smoke, ash and
-> floating embers, single heroic subject centered in frame, slightly low camera angle,
-> bold readable silhouette with high value contrast against a simplified atmospheric
-> background, empty dark negative space at top and bottom of the frame, vertical portrait
-> composition, highly detailed focal point, no text, no letters, no logos, no border.
+> Traditional oil painting on textured canvas, thick impasto brushwork and visible
+> palette-knife strokes, painterly lost-and-found edges, hand-painted collectible card
+> illustration (NOT a smooth digital render, NOT airbrushed), gritty grimdark military science
+> fiction, muted desaturated palette with a single saturated accent color, dramatic low-key
+> chiaroscuro with strong rim light, drifting smoke, ash and embers. One heroic subject
+> occupying the middle 60% of a vertical portrait frame, slightly low camera angle, bold
+> readable silhouette against a simple atmospheric background; the top fifth of the image is
+> empty dark sky or haze and the bottom quarter is simple dark ground in shadow.
+
+_(v2 of the meta-prompt, chosen after the pilot rounds. The authoritative copy is in `scripts/gen-art.ts`; see `docs/ART_LOG.md`.)_
 
 ## Negative list
 
@@ -59,10 +62,10 @@ Human colonial militia from a poor, industrial frontier world.
 
 ### Vhorr Brood: "Swarm & evolve"
 A bio-swarm, one organism in many bodies.
-- **Anatomy:** wet glossy **bruised purple-black chitin** in overlapping plates with the
-  **same ridged plate pattern** on every creature; **bile-green bioluminescent veins and
-  sacs**; clusters of small glossy black eyes; **bone-white scythe-tipped limbs**;
-  flesh-pink membranes between plates.
+- **Anatomy:** wet **black-oil chitin** with an iridescent sheen, **overgrown with fungal gills and
+  coral-like growths in flesh-pink**, the same growth pattern on every creature. **Bile-green
+  glowing spore sacs and veins**, clusters of small glossy black eyes, **dark hooked glass-like spurs
+  and mandibles** (no bone-white scythes). This motif was chosen in the pilot so the swarm doesn't read as Tyranids or Zerg.
 - **Synapse creatures:** swollen translucent craniums glowing green, linked to the others
   by faint green psychic threads.
 - **Environment:** organic creep of purple veins over cracked earth, spore mist, dripping ichor.
@@ -74,7 +77,8 @@ A bio-swarm, one organism in many bodies.
 ### The Hush: "Unseen"
 A secretive, ritualised stealth culture.
 - **Look:** layered **dark-teal wrap cloaks** and hoods; **smooth expressionless
-  porcelain-white masks with thin violet-glowing eye slits** on every operative; no visible skin.
+  porcelain-white masks with thin violet-glowing eye slits and a glowing violet kintsugi-style
+  repaired crack** on every operative (the signature motif, chosen in the pilot); no visible skin.
 - **Tech:** black glass and obsidian devices with **thin violet light-lines**; curved
   black-glass blades.
 - **Effects:** units half-dissolve into shadow or show doubled after-images; illusions are
