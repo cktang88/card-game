@@ -42,10 +42,26 @@ and Knizia's paper-prototype-first habit:
 5. **Human playtest** (every rule change, and every ~5 stat changes): run the §6 protocol.
 6. **Decide and log**: keep / revert / follow-up. A reverted experiment is still a result; log it.
 
-**The sim is a hypothesis generator, not the truth.** The AI is a greedy 1-ply planner. It
-misjudges cards whose value is delayed or conditional (tactics, bluffs, setup). A card the sim
-calls "dead" might really be weak, or the AI might be failing to use it. Check which before
-nerfing or buffing anything (Mega Crit used real player data; we only have a bot).
+**Steelman vs steelman, always.** A balance number means nothing if a deck is played badly or
+built badly. That's strawmanning, and you end up nerfing the decks the bot happens to play well.
+Every balance run must use:
+1. **The strongest AI we have** (`--ai=steel`, the default). It predicts the opponent's reply on
+   several sampled worlds and best-responds. It's *honest*: it never sees the opponent's hand or the
+   identity of cloaked units, and re-samples both from the unseen cards, so Hush's deception is
+   tested against a player who is actually fooled, not one who reads the cards.
+2. **Each deck's own strategy**: evaluation weights tuned by self-play for that deck
+   (`scripts/tune.ts`), so a Bastion deck values holding and breaches differently from a Tide deck.
+3. **Each deck's own construction**: the deck list itself is hill-climbed against the field
+   (≤2 copies; archetype decks keep ≥10 on-archetype cards so they stay that archetype).
+4. **Re-tune after every card change** (at least the affected faction), so the field stays steelmanned.
+5. **Check the AI itself.** `npm run sim -- 8 --arch --h2h` must show the steelman clearly beating
+   the old greedy bot (81% at introduction). If a change to the AI doesn't win head-to-head, it isn't
+   an improvement.
+
+**The sim is still a hypothesis generator, not the truth.** Even a steelman bot misjudges delayed or
+conditional value (bluffs, multi-round setups). A card the sim calls "dead" might be weak, or the
+AI might be failing to use it. Check which before nerfing or buffing anything (DESIGN_LOG #1).
+Human playtests decide.
 
 ## 4. Exit criteria (printed by `npm run sim -- N --arch --cards`)
 

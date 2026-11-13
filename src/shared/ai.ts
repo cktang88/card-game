@@ -5,7 +5,7 @@
 //              that score well both against that reply and against a pass. Its evaluation
 //              weights come from a per-deck profile tuned by self-play (scripts/tune.ts), so
 //              every deck is played toward its own best plan.
-import { isTactic } from './cards';
+import { Faction, isTactic, starterDeck } from './cards';
 import {
   GameState, Orders, PlayerId, Pos, allCells, canDeployAt, computeBreaches, def, facing, formationAt, isFearless,
   isFront, isFrontCell, key, maxNerve, other, power, simulate,
@@ -31,6 +31,10 @@ export interface AiOptions { level?: 'greedy' | 'steel'; weights?: Partial<AiWei
 
 /** Tuned per-deck profiles: label (e.g. "brood/tide") → weights + deck list. */
 export const AI_PROFILES = PROFILES as Record<string, { weights?: Partial<AiWeights>; deck?: string[] }>;
+/** Best known deck for a faction/archetype: the self-play tuned list if there is one. */
+export function tunedDeck(f: Faction, arch?: string): string[] {
+  return AI_PROFILES[`${f}/${arch ?? 'balanced'}`]?.deck ?? starterDeck(f, arch);
+}
 /** Back-compat knob used by older sim flags. */
 export const AI_TUNING = { tacticBonus: DEFAULT_WEIGHTS.tactic };
 

@@ -1,7 +1,7 @@
 // Game controllers: a local vs-AI game, or an online room over WebSocket.
-import { Faction, starterDeck } from '../shared/cards';
+import { Faction } from '../shared/cards';
 import { GameEvent, GameState, Orders, PlayerId, apply, newGame, viewFor } from '../shared/engine';
-import { aiOrders, aiWantsRetreat } from '../shared/ai';
+import { AiOptions, aiOrders, aiWantsRetreat, tunedDeck } from '../shared/ai';
 import type { ClientMsg, ServerMsg } from '../shared/protocol';
 
 export interface Controller {
@@ -20,8 +20,11 @@ export class LocalAIGame implements Controller {
   constructor(me: Faction, meArch: string | undefined, ai: Faction) {
     const archs = { concord: ['gunline', 'bastion', 'iron'], brood: ['tide', 'apex', 'synapse'], hush: ['phantom', 'knives', 'dread'] }[ai];
     const aiArch = archs[Math.floor(Math.random() * archs.length)];
-    this.state = newGame(me, ai, (Math.random() * 2 ** 31) | 0, [starterDeck(me, meArch), starterDeck(ai, aiArch)]);
+    this.state = newGame(me, ai, (Math.random() * 2 ** 31) | 0, [tunedDeck(me, meArch), tunedDeck(ai, aiArch)]);
+    // Steelman opponent: plays its tuned deck with that deck's tuned strategy, and never sees your hand.
+    this.ai = { level: 'steel', profile: `${ai}/${aiArch}` };
   }
+  private ai: AiOptions;
   start() { this.emit([]); }
   private emit(ev: GameEvent[]) { this.onState?.(viewFor(this.state, 0), ev); }
   submit(o: Orders) {
@@ -30,7 +33,7 @@ export class LocalAIGame implements Controller {
     // AI decides from the same pre-reveal information (it can't see our orders)
     setTimeout(() => {
       if (aiWantsRetreat(this.state, 1)) { apply(this.state, { type: 'retreat', player: 1 }); this.emit(this.state.events); return; }
-      const e2 = apply(this.state, { type: 'orders', player: 1, orders: aiOrders(this.state, 1) });
+      const e2 = apply(this.state, { type: 'orders', player: 1, orders: aiOrders(this.state, 1, this.ai) });
       if (e2) console.error('AI orders rejected', e2);
       this.emit(this.state.events);
     }, 30);

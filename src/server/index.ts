@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { Faction } from '../shared/cards';
 import { Action, GameState, PlayerId, apply, newGame, viewFor } from '../shared/engine';
+import { tunedDeck } from '../shared/ai';
 import type { ClientMsg, ServerMsg } from '../shared/protocol';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -71,7 +72,7 @@ wss.on('connection', (ws) => {
       if (!r || r.sockets[1]) return send(ws, { t: 'error', msg: 'Room not found or full' });
       room = r; seat = 1;
       r.sockets[1] = ws; r.factions[1] = m.faction;
-      r.state = newGame(r.factions[0]!, r.factions[1]!);
+      r.state = newGame(r.factions[0]!, r.factions[1]!, undefined, [tunedDeck(r.factions[0]!), tunedDeck(r.factions[1]!)]);
       send(r.sockets[0], { t: 'start', seat: 0 });
       send(ws, { t: 'start', seat: 1 });
       broadcast(r);
