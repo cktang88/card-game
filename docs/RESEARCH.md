@@ -423,3 +423,71 @@ and assumes the opponent plays nothing.
 | Decoys no longer Shock on vanishing; Herald Power 3 → 2; Brood Nerve +1 on five cards | Brood back up, Hush down | Kept |
 | Skitterling Power 1 → 2; tiebreak on Relays at time | Tide 46% | Kept |
 | Faceless cost 5 → 4; Night of Knives +2 → +3 | Final: factions 46 / 50 / 46; archetypes 41–62% | — |
+
+## 11. Board redesign debate: hex vs lanes vs wargame line (3 proposals + judge)
+
+**Designer feedback that triggered it**
+- "HQ is BS: complexity, not strategy."
+- "You should be able to place your first unit anywhere."
+- "Hex is weird: after routs, units have no adjacent enemies, and two possible approaches is crazy complex."
+- "Lanes? But then how do flanks and rear attacks hit morale?"
+
+**All three independent proposals converged on the same core:**
+- A fixed front of **columns × 2 ranks** (front line plus support behind), with no HQ.
+- **One arrow per unit:** strike what's directly opposite.
+- **A gap is the mechanic:** an unopposed unit breaks through to the rear or flanks.
+- Routs ripple sideways.
+
+### A. Lanes (Snap / Inscryption / KARDS / Stormbound)
+- **Board:** 3 lanes × Front/Rear per side.
+- **Breakthrough:** an unopposed Front unit hits the enemy Rear (+1), or drains 1 Resolve if that slot is empty, and adds +1 Shock to enemy Fronts in adjacent lanes. A unit flanked from both sides is Surrounded.
+- **Lane Collapse** costs −1 Resolve.
+- **Terrain:** one terrain card per lane.
+- **Warning:** Artifact's three lanes were three separate boards you scrolled between. Ours must fit on one screen.
+- **Sources:**
+  - https://inscryption.fandom.com/wiki/Sigils
+  - https://pcinvasion.com/inscryption-beginners-guide-card-upgrades-vendors/2
+  - https://support.kards.com/hc/en-us/articles/360026757171-Battlefield-elements-The-Support-Line
+  - https://support.kards.com/hc/en-us/articles/360026464712-Battlefield-elements-The-Frontline
+  - https://stormboundkingdomwars.fandom.com/wiki/Frontline
+  - https://statelyplay.com/2017/10/06/strategy-101-stormbound-basics-edition/
+  - https://pcgamer.com/why-did-artifact-fail-and-what-can-valve-do-to-save-it
+  - https://invenglobal.com/articles/13448/valve-finally-stops-development-of-artifact-and-artifact-20-citing-lack-of-players
+  - https://www.gamespot.com/articles/marvel-snap-is-a-new-fast-paced-collectible-card-game-from-ex-hearthstone-devs/1100-6503602/
+  - https://bethesda.net/en-US/news/the-ins-and-outs-of-lanes
+
+### B. Battle Line (Commands & Colors / Battle Line / DBA / Total War / Mechabellum)
+- **Board:** 7 files in 3 sectors, with a Front and a Reserve row per side.
+- **Reserves:** step up into an empty Front cell and give Support (+1 Nerve).
+- **Breakthrough:** an unopposed unit wheels to the nearest enemy Front unit and strikes its rear for ×2 Shock.
+- **Exposed flank:** an empty neighbouring file gives +1 Shock per open side.
+- **Objectives:** sector majority drains Resolve; holding all three is Envelopment.
+- **Sources:**
+  - https://commandsandcolors.net/napoleonics/the-game/game-boxes/base-game/05-game-turn-sequence-of-play.html
+  - https://www.commandsandcolors.net/ancients/the-game/main/12-retreat.html
+  - https://insidegmt.com/breaking-the-line-and-holding-the-line-in-commands-colors-ancients-by-brents-part-1
+  - https://fgbradleys.com/wp-content/uploads/rules/Battle%20Line%20-%20rules.pdf
+  - https://rulespal.com/de-bellis-antiquitatis/rulebook
+  - https://fanaticus.boards.net/thread/804/recoil-supporting-element-after-fighting
+  - https://totalwarwarhammer.gamepedia.com/Break
+  - https://forums.totalwar.org/wiki/index.php/MTW_Morale
+  - https://www.ludo.guide/guide/total-war-rome-ii/routing
+  - https://finalboss.io/mechabellum-beginner-guide-to-unit-roles-deployment-and
+
+### C. "The Front" (Battle Line / Commands & Colors / Darkest Dungeon ranks / Go encirclement / Neuroshima Hex)
+- **Board:** 5 sectors × Line + Support per side.
+- **Relieve:** placing a card onto your own slot sends the old unit back to hand.
+- **Breach:** both enemy slots opposite are empty; the unit exploits sideways for 1 Shock and drains Resolve.
+- **Encircled (Go rule):** if both neighbouring sectors are breached, the unit breaks.
+- **Extra win condition:** Breakthrough, i.e. 3 adjacent sectors breached.
+- **Sources:**
+  - https://rulespal.com/battle-line/rulebook
+  - https://www.meeplemountain.com/boardgame/battle-line
+  - https://boardgamegeek.com/wiki/page/Command_and_Colors_system
+  - https://rulespal.com/commands-and-colors-ancients/rulebook
+  - https://lparchive.org/Darkest-Dungeon/Update%2002
+  - https://www.gameskinny.com/tips/darkest-dungeon-hero-class-guide/
+  - https://britgo.org/intro/intro2.html
+  - https://www.usgo-archive.org/files/pdf/conciserules.pdf
+  - https://www.orderofgamers.com/downloads/NeuroshimaHex_v1.pdf
+  - https://lehi-innovation.github.io/boardgame-rules/rules/neuroshima-hex/
