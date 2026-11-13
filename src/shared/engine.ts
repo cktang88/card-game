@@ -32,6 +32,7 @@ export const RULES = {
   evolveMax: 3,
   terrainColumns: 0,    // 0 = auto (≈ width / 2.5)
   cohesionMax: 2,
+  drilled: 1,           // Concord: extra cohesion Nerve per round (A/B tested 2: no effect, DESIGN_LOG #12)
   formations: true,     // column hands: the higher hand holds the Edge (+1 strikes) in that column
   edge: 1,              // strike bonus in a column where you hold the Edge
   underdogCp: 1,        // extra Command next round for the player behind on Resolve by ≥ 3
@@ -698,7 +699,7 @@ function upkeep(s: GameState) {
     if (!f.cards.length || has(f, 'decoy')) continue;
     if (isLinked(s, f)) { heal(s, f, 1); continue; } // the hive regrows flesh instead
     if (isFearless(s, f)) continue;
-    const gain = Math.min(RULES.cohesionMax + (faction(s, f) === 'concord' ? 1 : 0), allies(s, f).length); // Concord: Drilled
+    const gain = Math.min(RULES.cohesionMax + (faction(s, f) === 'concord' ? RULES.drilled : 0), allies(s, f).length); // Concord: Drilled
     const before = f.morale;
     f.morale = Math.min(maxNerve(f), f.morale + gain);
     if (f.morale > before) s.events.push({ t: 'rally', fid: f.fid, pos: f.pos, amount: f.morale - before });

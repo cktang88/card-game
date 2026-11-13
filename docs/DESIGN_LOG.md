@@ -80,3 +80,21 @@ Next: knives' payoff (v_needle and v_knives are both low), then the synapse text
 - **Hypothesis (follow-up to #6):** the cost cut didn't help, so the payoff is too subtle. A Synapse deck should feel the Overmind arrive.
 - **Result:** synapse 45/47, Overseer 45/48% when played. Apex is still at the bottom edge (38/44).
 - **Decision:** KEEP. Card text updated.
+
+## 10. Battery: cost 5 → 4 (REVERTED) and no Lethal (REVERTED)
+- Cost 4: played more (54%) but still wins 34–36%, and bastion went down. A trap card, not an expensive one.
+- No Lethal (hypothesis: Lethal turns its strike into wounds, which works against a morale game): Battery 27/36. Wrong hypothesis.
+- **Meta-finding:** at n≈70 the per-card win% swings ±15 points between identical runs (Marksman 29 vs 45). The outlier criterion now requires n ≥ 150.
+
+## 11. Mortar cost 3 → 2 (REVERTED): no measurable change.
+
+## 12. The Balanced deck was never measured
+- `--arch` now includes `<faction>/balanced`, the menu default and the deck online play uses. **Concord balanced was 35%, Hush balanced 55–60%.** The earlier buffs to Brood and Hush had pushed Concord down across the board (≈40% against every opponent, not one bad matchup).
+- `--rule=drilled=2` (Concord cohesion +1 more): no effect, because cohesion is capped by the number of allies around a unit. REVERTED.
+- `--stat=concord.nerve+1` (all units): Concord 58–71. Huge overshoot. **Nerve is the strongest stat in the game.** +1 Nerve is worth far more than +1 Power or −1 cost.
+- `--stat=concord:Infantry.nerve+1` (6 cards): Concord 50–62, Brood 33–40. Still overshoots.
+- **Kept:** +1 Nerve on only the five underperforming low-Nerve units (Riflemen, Sappers, Mortar, Marksman, Battery). Result (2× N=30): gunline 53/57, bastion 45/46, iron 50/52, balanced 49/41; Brood tide 49/47, apex 45/40, synapse 40/39, balanced 41/40; Hush phantom 45/48, knives 38/47, dread 47/50, balanced 44/51. Comeback 26/26 PASS.
+
+## Status after #12
+All entries fall within roughly 38–57%. Brood synapse and balanced sit at the bottom edge (~40). Length, morale, seat, comeback and dead cards all PASS. Card outliers: occasional single-run flags (b_spitter, v_needle), inside the noise.
+**Process note:** every remaining gap is now 2–5 points, about the size of the sim's noise. More stat tuning against a greedy bot risks fitting the bot instead of the game. **The next step is a human playtest (DESIGN_PROCESS §6), not more sim tuning.**

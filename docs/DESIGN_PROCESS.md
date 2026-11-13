@@ -56,7 +56,7 @@ nerfing or buffing anything (Mega Crit used real player data; we only have a bot
 | Morale share | ≥ 50% of Resolve lost | pillar 1 |
 | Comeback | ≥ 25% of games won by the player behind after R4 | hope until the end (Garfield: you need a chance even when behind) |
 | Seat advantage | 45–55% | initiative rules are fair |
-| Card outliers | no card wins 35–65% outside the band when played (n ≥ 20) | no auto-include and no trap card |
+| Card outliers | no card outside 35–65% win-when-played (n ≥ 150; below that the noise is ±8–15 points) | no auto-include and no trap card |
 | Dead cards | every card played in ≥ 15% of the games where it's in the deck | every card earns its slot |
 
 A version counts as **done** when every criterion passes *and* a human playtest round shows no

@@ -1,6 +1,6 @@
 // Headless AI-vs-AI simulation for balance & pacing.
 //   npm run sim -- [gamesPerMatchup=20] [--arch] [--verbose]
-import { FACTION_INFO, Faction, starterDeck } from '../shared/cards';
+import { CARDS, FACTION_INFO, Faction, starterDeck } from '../shared/cards';
 import { GameState, PlayerId, RULES, apply, newGame, setCols } from '../shared/engine';
 import { AI_TUNING, aiOrders, aiWantsRetreat } from '../shared/ai';
 const tbArg = process.argv.find((a) => a.startsWith('--tactic-bonus='));
@@ -19,11 +19,17 @@ for (const a of process.argv.filter((a) => a.startsWith('--rule='))) {
   const [k, v] = a.slice(7).split('=');
   (RULES as Record<string, unknown>)[k] = v === 'true' ? true : v === 'false' ? false : Number(v);
 }
+// --stat=faction.field+N : sim-only stat experiment on every unit of a faction
+for (const a of process.argv.filter((a) => a.startsWith('--stat='))) {
+  const m = a.slice(7).match(/^(\w+)(?::(\w+))?\.(\w+)([+-]\d+)$/); // faction[:Class].field+N
+  if (!m) throw new Error('bad --stat ' + a);
+  for (const d of CARDS) if (d.faction === m[1] && d.cls !== 'Tactic' && (!m[2] || d.cls === m[2]) && (d as unknown as Record<string, number>)[m[3]] > 0) (d as unknown as Record<string, number>)[m[3]] += Number(m[4]);
+}
 const FACTIONS: Faction[] = ['concord', 'brood', 'hush'];
 
 interface Entry { f: Faction; arch?: string; label: string }
 const entries: Entry[] = byArch
-  ? FACTIONS.flatMap((f) => Object.keys(FACTION_INFO[f].archetypes).map((a) => ({ f, arch: a, label: `${f}/${a}` })))
+  ? FACTIONS.flatMap((f) => [...Object.keys(FACTION_INFO[f].archetypes).map((a) => ({ f, arch: a as string | undefined, label: `${f}/${a}` })), { f, arch: undefined, label: `${f}/balanced` }])
   : FACTIONS.map((f) => ({ f, label: f }));
 
 // ── per-game telemetry (Mega Crit-style: per-card play rate, win-when-played, round played) ──
@@ -128,7 +134,7 @@ const lenOk = rounds.filter((r) => r >= 6).length / G;
 const morale = (resolveBy.morale ?? 0) / Math.max(1, totR);
 const cb = comebacks / Math.max(1, comebackChances);
 const seat = seat0wins / Math.max(1, decided);
-const cardOutliers = [...cardStats.entries()].filter(([, st]) => st.played >= 20 && (st.wins / st.played < 0.35 || st.wins / st.played > 0.65)).map(([id]) => id);
+const cardOutliers = [...cardStats.entries()].filter(([, st]) => st.played >= 150 && (st.wins / st.played < 0.35 || st.wins / st.played > 0.65)).map(([id]) => id);
 const deadCards = [...cardStats.entries()].filter(([, st]) => st.games >= 20 && st.played / st.games < 0.15).map(([id]) => id);
 const crit = [
   ['Win rate per entry within 40–60%', factionWR.every(([, w]) => w >= 0.4 && w <= 0.6), factionWR.map(([k, w]) => `${k} ${(100 * w).toFixed(0)}`).join(', ')],
@@ -136,7 +142,7 @@ const crit = [
   ['Morale ≥ 50% of Resolve lost', morale >= 0.5, `${(100 * morale).toFixed(0)}%`],
   ['Comeback (behind after R4 → wins) ≥ 25%', cb >= 0.25, `${(100 * cb).toFixed(0)}% of ${comebackChances}`],
   ['Seat advantage within 45–55%', seat >= 0.45 && seat <= 0.55, `seat 0 wins ${(100 * seat).toFixed(0)}%`],
-  ['No card with win-when-played outside 35–65%', cardOutliers.length === 0, cardOutliers.join(', ') || 'none'],
+  ['No card with win-when-played outside 35–65% (n ≥ 150)', cardOutliers.length === 0, cardOutliers.join(', ') || 'none'],
   ['No dead card (played in < 15% of games)', deadCards.length === 0, deadCards.join(', ') || 'none'],
 ] as const;
 console.log('\nExit criteria:');

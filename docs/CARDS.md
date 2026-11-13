@@ -35,15 +35,15 @@ _Hold the line. Rows of rifles, officers and armour._
 | Card | Cost | Power | Nerve | Range | Class | Text | Niche | Archetypes |
 |---|---|---|---|---|---|---|---|---|
 | **Dustcoat Fusiliers** | 1 | 2 | 4 | melee | Infantry | Third Ashline Regiment. Never broke. | Cheapest body to fill out a tight formation or plug a gap. | gunline, bastion |
-| **Ashline Riflemen** | 2 | 2 | 3 | 2 | Infantry | Volley: +1 if another ally strikes the same target. | Rewards lining several shooters up on one enemy. | gunline |
+| **Ashline Riflemen** | 2 | 2 | 4 | 2 | Infantry | Volley: +1 if another ally strikes the same target. | Rewards lining several shooters up on one enemy. | gunline |
 | **Whistle-Lieutenant** | 2 | 1 | 4 | melee | Officer | Officer: adjacent allies strike +1. | Place in the middle of your line; the enemy wants it dead first. | gunline, iron |
 | **Colour Sergeant Hale** | 3 | 2 | 6 | melee | Officer | Standard: adjacent allies take 1 less Shock. | Anchors a shaky line so it does not panic-cascade. | gunline, bastion |
-| **"Widow" Varn, Longshot** | 3 | 2 | 2 | 3 | Infantry | Lethal. Hunter: shoots the enemy Back row first. | Picks off the big expensive threat from far back; fragile if reached. | gunline |
-| **Mole Brigade Sappers** | 2 | 2 | 3 | melee | Infantry | On Reveal: dig in. Its column becomes Ruins (ranged strikes into it −1). | Turns a contested column into Ruins, blunting enemy fire for the rest of the game. | bastion |
+| **"Widow" Varn, Longshot** | 3 | 2 | 3 | 3 | Infantry | Lethal. Hunter: shoots the enemy Back row first. | Picks off the big expensive threat from far back; fragile if reached. | gunline |
+| **Mole Brigade Sappers** | 2 | 2 | 4 | melee | Infantry | On Reveal: dig in. Its column becomes Ruins (ranged strikes into it −1). | Turns a contested column into Ruins, blunting enemy fire for the rest of the game. | bastion |
 | **Iron Shieldwall** | 2 | 1 | 6 | melee | Infantry | Guard: strikes aimed at the allies beside it hit it instead. | Soaks the hits meant for your officers and snipers. | bastion |
 | **Bastion Pillbox** | 2 | 3 | 0 | 2 | Structure | Fearless: Shock hits it as damage. | An unbreakable gun that plugs a column; only damage removes it. | bastion |
-| **Rainmaker Mortar Team** | 3 | 2 | 2 | 3 | Infantry | Splash: also Shocks the enemies beside its target by 1. | Punishes enemies that clump together. | bastion |
-| **Hammerfall 380 Battery** | 5 | 3 | 3 | 4 | Vehicle | Artillery: ignores Ruins and Guard. Lethal. | The answer to walls, Guards and dug-in enemies, from anywhere. | bastion |
+| **Rainmaker Mortar Team** | 3 | 2 | 3 | 3 | Infantry | Splash: also Shocks the enemies beside its target by 1. | Punishes enemies that clump together. | bastion |
+| **Hammerfall 380 Battery** | 5 | 3 | 4 | 4 | Vehicle | Artillery: ignores Ruins and Guard. Lethal. | The answer to walls, Guards and dug-in enemies, from anywhere. | bastion |
 | **Lancer Ram-Track** | 2 | 4 | 4 | melee | Vehicle | On Reveal: rams the enemy Front unit opposite one column aside. If it can’t move, 2 Shock. | The rare mover: shoves the enemy unit opposite aside to open a breach, or crushes it against its neighbours. | iron |
 | **Bulwark Mk.III Walker** | 4 | 6 | 5 | melee | Vehicle | Armor: takes 1 less damage. | Shrugs off snipers and acid. Spearheads a push. | iron, bastion |
 | **Iron Saint Siege-Crawler** | 5 | 6 | 6 | 2 | Vehicle | Breach: +2 against Fearless units and units in cover. | Cracks fortresses and unbreakable swarms. | iron |
