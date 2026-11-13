@@ -30,13 +30,17 @@ export const RULES = {
   breachDrain: 1,
   breachFromRound: 2,
   evolveMax: 3,
-  terrainColumns: 2,
-  cohesionMax: 2,      // Nerve regained per round from allies around a unit
+  terrainColumns: 0,    // 0 = auto (≈ width / 2.5)
+  cohesionMax: 2,
+  formations: true,     // column hands: the higher hand holds the Edge (+1 strikes) in that column
+  edge: 1,      // Nerve regained per round from allies around a unit
 };
 export const cpForRound = (round: number) => Math.min(round + 1, RULES.cpCap);
 
 // ───────────────────────── grid ─────────────────────────
-export const COLS = 5;
+/** Board width (columns). Live binding: change via setCols(). */
+export let COLS = 7;
+export function setCols(n: number) { COLS = n; }
 export const ROWS = 4;
 /** Rows: 0 = P1 Back, 1 = P1 Front, 2 = P0 Front, 3 = P0 Back. */
 export interface Pos { col: number; row: number }
@@ -103,6 +107,7 @@ export type GameEvent =
   | { t: 'move'; fid: number; from: Pos; to: Pos }
   | { t: 'breach'; fid: number; pos: Pos; owner: PlayerId }
   | { t: 'flank'; fid: number; pos: Pos; amount: number }
+  | { t: 'edge'; col: number; owner: PlayerId }
   | { t: 'strike'; fid: number; target: number; from: Pos; to: Pos; amount: number; lethal: boolean; rear: boolean }
   | { t: 'shock'; fid: number; pos: Pos; amount: number }
   | { t: 'damage'; fid: number; pos: Pos; amount: number }
@@ -130,6 +135,7 @@ export interface GameState {
   endReason: string;
   breaches: number[];          // fids In Breach this round
   flanked: Record<number, number>; // fid → extra Shock per strike taken this round
+  edge: (-1 | PlayerId)[];     // per column: who holds the Edge this round
   log: string[];
   events: GameEvent[];
   stats: { breaks: [number, number]; destroyed: [number, number]; resolveBy: Record<string, number> };
@@ -160,13 +166,13 @@ export function newGame(f0: Faction, f1: Faction, seed = Date.now() & 0xffffffff
     players: [mkPlayer(f0), mkPlayer(f1)],
     terrain: Array(COLS).fill('open'),
     formations: [], nextId: 1, initiative: 0, stakes: 1, pendingEscalations: 0,
-    winner: null, endReason: '', breaches: [], flanked: {}, log: [], events: [],
+    winner: null, endReason: '', breaches: [], flanked: {}, edge: [], log: [], events: [],
     stats: { breaks: [0, 0], destroyed: [0, 0], resolveBy: {} },
   };
   s.initiative = rand(s) < 0.5 ? 0 : 1;
-  const cols = [0, 1, 2, 3, 4];
+  const cols = Array.from({ length: COLS }, (_, i) => i);
   shuffle(s, cols);
-  cols.slice(0, RULES.terrainColumns).forEach((c, i) => { s.terrain[c] = i % 2 === 0 ? 'ridge' : 'ruins'; });
+  cols.slice(0, RULES.terrainColumns || Math.round(COLS / 2.5)).forEach((c, i) => { s.terrain[c] = i % 2 === 0 ? 'ridge' : 'ruins'; });
   for (const p of [0, 1] as PlayerId[]) {
     const ids = decks?.[p] ?? starterDeck(s.players[p].faction);
     s.players[p].deck = ids.map((id) => ({ uid: s.nextId++, id, dmg: 0 }));
@@ -234,8 +240,7 @@ export const isFearless = (s: GameState, f: Formation) => has(f, 'fearless') || 
 /** Concord: a Front unit with an allied Front unit beside it. */
 export function shoulderToShoulder(s: GameState, f: Formation): boolean {
   if (faction(s, f) !== 'concord' || !isFront(f)) return false;
-  const b = beside(f.pos);
-  return b.length === 2 && b.every((p) => formationAt(s, p)?.owner === f.owner);
+  return beside(f.pos).some((p) => formationAt(s, p)?.owner === f.owner);
 }
 
 /** Front units with no enemy at all in their column. */
@@ -246,10 +251,40 @@ export function computeBreaches(s: GameState): { breaches: Formation[]; flanked:
     const amt = faction(s, b) === 'brood' && !b.buffs.silenced ? RULES.flood : RULES.flank;
     for (const p of beside({ col: b.pos.col, row: frontRow(other(b.owner)) })) {
       const e = formationAt(s, p);
-      if (e && e.owner !== b.owner) flanked.set(e, (flanked.get(e) ?? 0) + amt);
+      if (e && e.owner !== b.owner && faction(s, e) !== 'concord') flanked.set(e, (flanked.get(e) ?? 0) + amt); // Concord: Hold the Line
     }
   }
   return { breaches, flanked };
+}
+
+// ───────────────────────── formations (column hands) ─────────────────────────
+export type HandRank = 0 | 1 | 2 | 3 | 4;
+export const HAND_NAMES = ['—', 'Rabble', 'Squad', 'Kin', 'Command'] as const;
+const LEADERS = ['Officer', 'Synapse', 'Psion'];
+/** Your cards in a column (Front + Back, including stacked cards) form a hand:
+ *  Rabble 1 card · Squad 2+ · Kin 2+ non-leaders all of one class · Command Kin + a leader. */
+export function columnHand(s: GameState, p: PlayerId, col: number): { rank: HandRank; cost: number } {
+  // cloaked units are hidden, so they aren't in formation (and the opponent couldn't see them anyway)
+  const cards = s.formations.filter((f) => f.owner === p && f.pos.col === col && !has(f, 'decoy') && !f.cloaked).flatMap((f) => f.cards);
+  if (!cards.length) return { rank: 0, cost: 0 };
+  const cost = cards.reduce((a, c) => a + def(c).cost, 0);
+  if (cards.length === 1) return { rank: 1, cost };
+  const troops = cards.filter((c) => !LEADERS.includes(def(c).cls));
+  const leaders = cards.length - troops.length;
+  const cls = (c: CardInst) => (s.players[p].faction === 'brood' && ['Swarm', 'Beast'].includes(def(c).cls) ? 'Brood' : def(c).cls); // One Organism
+  const kin = troops.length >= 2 && troops.every((c) => cls(c) === cls(troops[0]));
+  const rank: HandRank = kin && leaders ? 4 : kin ? 3 : 2;
+  return { rank, cost };
+}
+/** Who holds the Edge in each column (higher hand; tie → higher total cost; else nobody). */
+export function computeEdge(s: GameState): (-1 | PlayerId)[] {
+  return Array.from({ length: COLS }, (_, col) => {
+    const a = columnHand(s, 0, col), b = columnHand(s, 1, col);
+    if (!a.rank || !b.rank) return -1; // uncontested columns are breaches, not hands
+    if (a.rank !== b.rank) return a.rank > b.rank ? 0 : 1;
+    if (a.cost !== b.cost) return a.cost > b.cost ? 0 : 1;
+    return -1;
+  });
 }
 
 // ───────────────────────── targeting ─────────────────────────
@@ -363,7 +398,6 @@ export function strikeValue(s: GameState, a: Formation, t: Formation, rear: bool
   const ad = leadDef(a);
   const kw = (k: Keyword) => !a.buffs.silenced && ad.keywords.includes(k);
   let v = power(a) + a.buffs.power;
-  if (shoulderToShoulder(s, a)) v += 1;
   if (allies(s, a).some((o) => has(o, 'officer'))) v += 1;
   const link = linkSource(s, a);
   if (link && has(link, 'overmind')) v += 1;
@@ -371,6 +405,7 @@ export function strikeValue(s: GameState, a: Formation, t: Formation, rear: bool
   if (isRanged(ad) && terrainAt(s, t.pos.col) === 'ruins' && !kw('artillery')) v -= 1;
   if (rear) { v += RULES.rear; if (kw('raider')) v += 2; }
   v += s.flanked[t.fid] ?? 0;
+  if (RULES.formations && s.edge[a.pos.col] === a.owner) v += RULES.edge;
   let lethal = kw('lethal');
   if (a.cloaked && !kw('silent')) {
     v += RULES.ambush;
@@ -620,6 +655,8 @@ function resolveRound(s: GameState) {
   s.flanked = {};
   for (const b of breaches) s.events.push({ t: 'breach', fid: b.fid, pos: { ...b.pos }, owner: b.owner });
   for (const [f, n] of flanked) { s.flanked[f.fid] = n; s.events.push({ t: 'flank', fid: f.fid, pos: { ...f.pos }, amount: n }); }
+  s.edge = RULES.formations ? computeEdge(s) : [];
+  s.edge.forEach((w, col) => { if (w !== -1) s.events.push({ t: 'edge', col, owner: w as PlayerId }); });
 
   // ── STRIKE ──
   s.events.push({ t: 'step', step: 'strike' });
@@ -686,7 +723,7 @@ function nextRound(s: GameState) {
   s.initiative = r0 < r1 ? 0 : r1 < r0 ? 1 : other(s.initiative);
   s.round++;
   s.events.push({ t: 'round', round: s.round });
-  s.breaches = []; s.flanked = {};
+  s.breaches = []; s.flanked = {}; s.edge = [];
   while (s.pendingEscalations > 0) { s.stakes = Math.min(RULES.maxStakes, s.stakes * 2); s.pendingEscalations--; }
   if (s.round === RULES.maxRounds) s.stakes = Math.min(RULES.maxStakes, s.stakes * 2);
   for (const p of [0, 1] as PlayerId[]) {

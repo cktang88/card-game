@@ -166,7 +166,7 @@ export const CARDS: CardDef[] = [
     keywords: ['drain'], text: 'Drain: heals 2 every time it strikes.',
     niche: 'The apex: wins a straight fight against anything.',
     art: 'a colossal armoured alien behemoth with a vast jaw of blade-like teeth opening wide, smooth glossy plates, towering over colonial soldiers in olive greatcoats and red-striped steel helmets fleeing in the foreground' }),
-  c({ id: 'b_synapse', name: 'Thoughtstalk Warden', faction: 'brood', cost: 3, power: 2, nerve: 5, cls: 'Synapse', arch: ['synapse', 'tide'],
+  c({ id: 'b_synapse', name: 'Thoughtstalk Warden', faction: 'brood', cost: 2, power: 2, nerve: 5, cls: 'Synapse', arch: ['synapse', 'tide'],
     keywords: ['synapse'], text: 'Synapse: Brood beside, in front of or behind it are Fearless.',
     niche: 'Makes the swarm around it unbreakable. Kill it and they can panic again.',
     art: 'a tall elegant alien conductor creature with a smooth glowing translucent crest, thin luminous green psychic threads linking it to sleek hunters around it' }),
@@ -279,10 +279,10 @@ export const KEYWORD_HELP: Partial<Record<Keyword, string>> = {
 
 export const FACTION_INFO: Record<Faction, { name: string; color: string; blurb: string; rules: string[]; archetypes: Record<string, string> }> = {
   concord: { name: 'Concord Vanguard', color: '#c8553d', blurb: 'Hold the line. Rows of rifles, officers and armour.',
-    rules: ['Drilled: Concord units regain up to 3 Nerve per round from the allies around them (others: up to 2).', 'Shoulder to Shoulder: a Front unit with allies on both sides strikes +1.'],
+    rules: ['Hold the Line: Concord Front units cannot be Flanked.', 'Drilled: regains up to 3 Nerve per round from the allies around it (others: up to 2).'],
     archetypes: { gunline: 'Gunline: ranked riflemen and officers', bastion: 'Bastion: walls, cover and artillery', iron: 'Iron Tide: armour that bulldozes' } },
   brood: { name: 'Vhorr Brood', color: '#8fbf3a', blurb: 'Swarm & evolve. Fearless while linked; every bite makes them bigger.',
-    rules: ['Flood: a Brood unit In Breach flanks for +2 instead of +1.', 'Synapse Link: Brood around a Synapse are Fearless.', 'Evolve: a Brood unit that strikes gains +1 Power (max +3).'],
+    rules: ['One Organism: Swarms and Beasts count as one class for column hands.', 'Flood: a Brood unit In Breach flanks for +2 instead of +1.', 'Synapse Link: Brood around a Synapse are Fearless.', 'Evolve: a Brood unit that strikes gains +1 Power (max +3).'],
     archetypes: { tide: 'Endless Tide: drown them in bodies', apex: 'Apex: feed a monster', synapse: 'Synaptic Terror: linked, unbreakable horrors' } },
   hush: { name: 'The Hush', color: '#7a5cff', blurb: 'Unseen. Cloaks, decoys and ambush.',
     rules: ['Cloak: arrives cloaked; ranged units cannot target it (their shots fall through to the unit behind). Being struck reveals it.', 'Ambush: its first strike from cloak is +1, then it is revealed.'],
