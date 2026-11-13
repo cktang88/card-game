@@ -66,6 +66,28 @@ docs         design + art direction
 
 ## Card art
 
-Card art is not generated yet; it waits until the card list is final. The client already
-loads `public/art/<card_id>.png` when the file exists and falls back to a placeholder.
-The OpenRouter key goes in `.env` (gitignored) as `OPENROUTER_API_KEY`.
+All 48 cards have approved art, painted in one impasto-oil style with a visual "bible" per
+faction. The process, every prompt revision and every review verdict are in
+[`docs/ART_LOG.md`](docs/ART_LOG.md). The style and faction bibles are in
+[`docs/ART_DIRECTION.md`](docs/ART_DIRECTION.md).
+
+The game loads `public/art/<card_id>.webp`, as listed in `src/client/art-manifest.ts`.
+Full-resolution PNG drafts, each with its exact prompt, are kept in `art-drafts/<round>/`.
+
+Make a contact sheet for review:
+
+```bash
+python3 scripts/contact-sheet.py <round> sheet.png
+```
+
+Generate new art (needs `OPENROUTER_API_KEY` in `.env`, which is gitignored):
+
+```bash
+npm run art -- --ids <id,id> --round <name>
+```
+
+Approve a draft (converts it to WebP and updates the manifest):
+
+```bash
+python3 scripts/approve-art.py <round> <id> ...
+```

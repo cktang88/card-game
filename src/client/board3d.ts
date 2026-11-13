@@ -88,6 +88,8 @@ function tokenTexture(id: string, faction: Faction): THREE.Texture {
       t.colorSpace = THREE.SRGBColorSpace;
       // crop portrait to square centre
       t.repeat.set(1, 2 / 3); t.offset.set(0, 1 / 6);
+      // dispose first: the GPU storage was sized for the placeholder canvas
+      tex.dispose();
       (tex as THREE.Texture).image = t.image; tex.repeat.copy(t.repeat); tex.offset.copy(t.offset); tex.needsUpdate = true;
     }, undefined, () => {});
   }
