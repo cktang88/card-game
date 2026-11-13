@@ -491,3 +491,42 @@ and assumes the opponent plays nothing.
   - https://www.usgo-archive.org/files/pdf/conciserules.pdf
   - https://www.orderofgamers.com/downloads/NeuroshimaHex_v1.pdf
   - https://lehi-innovation.github.io/boardgame-rules/rules/neuroshima-hex/
+
+### Judge: cross-examination and merged ruleset (adopted as v0.4)
+
+**Critique of each proposal**
+- **A (3 lanes):**
+  - Too narrow. Only the centre lane can ever be surrounded, so one centre gap decides the game.
+  - "Steady" (panic immunity) creates turtles.
+  - Rule creep, plus double punishment for the same empty lane.
+- **B (7 files):**
+  - The "wheel to the nearest enemy" rule is ambiguous, and its ×2 rear strike is too strong.
+  - Every unit is Exposed early in the game.
+  - Reserves stepping up is movement.
+  - 14 cells per side don't fit a phone.
+- **C (5 sectors):**
+  - Auto-break when Encircled ignores Nerve.
+  - The Breakthrough instant win rewards spamming cheap units into empty sectors.
+  - Relieve is an infinite heal and causes stalls.
+  - It has the most rules of the three.
+
+**Merged ruleset (all now in docs/GAME_DESIGN.md)**
+- **Board:** 5 columns × Front/Back. It fits a phone, has 3 encircle-able interior columns, and a full line costs about 5 cards.
+- **Placement:** any cell on your own side. A Back cell needs your Front filled. Stacking is kept; Relieve is dropped.
+- **Targeting:** one arrow per unit.
+- **Breach / Flank / Surround:** breach status is set before strikes, so they never cascade within a round.
+- **Breakthrough drain:** capped at 1 per round, from round 2 onward.
+- **Panic:** spreads to the units beside, in front and behind.
+
+**Implementation-time adjustments (simulation)**
+- **Cloak "can't be targeted" → Hush won 93%.** Ranged units can't target a cloaked unit, and being struck reveals it.
+- **Phantoms that waste strikes forever → Hush won 66–70%.** Phantoms now pop when struck and Shock the striker; they hold a column for one round.
+- **Concord rule:** "both sides allied or edge" was rarely met. It became "an allied Front unit beside it".
+- **Starting Resolve 9 → 12:** for 6–8-round games.
+- **Card tweaks:**
+  - Walker 6 Power.
+  - Siege-Crawler cost 5.
+  - Fusiliers 4 Nerve.
+  - Ram-Track 4 Power.
+  - Pillbox 3 Power.
+  - Grub growth capped at +3.
