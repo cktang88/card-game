@@ -153,11 +153,11 @@ function groundTexture(): THREE.Texture {
   let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let i = 0; i < 900; i++) {
-    const v = 90 + rnd() * 120;
-    g.fillStyle = `rgba(${v},${v * 0.95},${v * 0.85},${0.08 + rnd() * 0.18})`;
+    const v = 110 + rnd() * 120;
+    g.fillStyle = `rgba(${v * 0.85},${v},${v * 0.6},${0.08 + rnd() * 0.2})`;
     g.beginPath(); g.ellipse(rnd() * 256, rnd() * 256, 2 + rnd() * 14, 1 + rnd() * 7, rnd() * 3, 0, Math.PI * 2); g.fill();
   }
-  for (let i = 0; i < 40; i++) { // cracks
+  for (let i = 0; i < 14; i++) { // cracks
     g.strokeStyle = `rgba(30,24,18,${0.15 + rnd() * 0.25})`; g.lineWidth = 0.6 + rnd() * 1.2;
     g.beginPath(); let x = rnd() * 256, y = rnd() * 256; g.moveTo(x, y);
     for (let k = 0; k < 5; k++) { x += (rnd() - 0.5) * 30; y += (rnd() - 0.5) * 30; g.lineTo(x, y); }
@@ -213,13 +213,14 @@ export class Board3D {
     this.renderer.shadowMap.enabled = true;
     el.appendChild(this.renderer.domElement);
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
-    this.scene.background = new THREE.Color('#0d0e10');
-    this.scene.fog = new THREE.Fog('#0d0e10', 18, 40);
+    this.scene.background = new THREE.Color('#2a3a2c');
+    this.scene.fog = new THREE.Fog('#34463a', 20, 46);
+    this.renderer.toneMappingExposure = 1.25;
     this.scene.add(this.root);
     this.root.add(this.overlays, this.fx, this.links);
 
-    const hemi = new THREE.HemisphereLight('#b9a88a', '#141210', 0.9);
-    const key = new THREE.DirectionalLight('#ffd9a0', 2.2);
+    const hemi = new THREE.HemisphereLight('#dfe9ff', '#3a4a2a', 1.6);
+    const key = new THREE.DirectionalLight('#fff0d0', 3.0);
     key.position.set(-6, 14, 8); key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
     Object.assign(key.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12 });
@@ -228,7 +229,7 @@ export class Board3D {
     this.scene.add(hemi, key, rim);
 
     // ground plane
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 48), new THREE.MeshStandardMaterial({ color: '#16130f', roughness: 1 }));
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 48), new THREE.MeshStandardMaterial({ color: '#3d5232', roughness: 1, map: groundTexture() }));
     ground.rotation.x = -Math.PI / 2; ground.position.y = -0.01; ground.receiveShadow = true;
     this.scene.add(ground);
 
@@ -276,7 +277,7 @@ export class Board3D {
       const geo = new THREE.BoxGeometry(CELL * 0.92, h, 1.62);
       geo.translate(0, h / 2, 0);
       const back = pos.row === 0 || pos.row === 3;
-      const base = t === 'ruins' ? '#5a5048' : t === 'ridge' ? '#8a7858' : back ? '#5e5242' : '#6b5d48';
+      const base = t === 'ruins' ? '#8a867a' : t === 'ridge' ? '#8fae5a' : back ? '#5f8a45' : '#6c9a4c';
       const mat = new THREE.MeshStandardMaterial({ color: base, map: groundTexture(), roughness: 0.95, metalness: 0.04 });
       const m = new THREE.Mesh(geo, mat);
       const [x, z] = hexXZ(pos);
@@ -286,6 +287,15 @@ export class Board3D {
       add(m);
       this.tiles.set(key(pos), m);
       this.tileTop.set(key(pos), h);
+      if (t !== 'ruins') {
+        const tuftMat = new THREE.MeshStandardMaterial({ color: t === 'ridge' ? '#a8c46a' : '#7fae55', roughness: 1 });
+        for (let i = 0; i < 5; i++) {
+          const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.16 + Math.random() * 0.12, 4), tuftMat);
+          const ex = (Math.random() < 0.5 ? -1 : 1) * (0.62 + Math.random() * 0.15), ez = (Math.random() - 0.5) * 1.4;
+          tuft.position.set(x + (i % 2 ? ex : (Math.random() - 0.5) * 1.3), h + 0.08, z + (i % 2 ? ez : (Math.random() < 0.5 ? -0.72 : 0.72)));
+          add(tuft);
+        }
+      }
       if (t === 'ruins') {
         for (let i = 0; i < 3; i++) {
           const b = new THREE.Mesh(new THREE.BoxGeometry(0.16 + Math.random() * 0.2, 0.12 + Math.random() * 0.3, 0.16), mat);
@@ -296,7 +306,7 @@ export class Board3D {
       }
     }
     // the trench: no-man's-land between the two front rows
-    const trench = new THREE.Mesh(new THREE.BoxGeometry(CELL * COLS + 0.6, 0.06, 0.55), new THREE.MeshStandardMaterial({ color: '#1a1410', roughness: 1 }));
+    const trench = new THREE.Mesh(new THREE.BoxGeometry(CELL * COLS + 0.6, 0.06, 0.55), new THREE.MeshStandardMaterial({ color: '#3a2c1e', roughness: 1 }));
     trench.position.set(0, 0.03, 0); add(trench);
     for (let i = 0; i < COLS * 2 - 1; i++) {
       const wire = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.012, 4, 10), new THREE.MeshStandardMaterial({ color: '#4a4038', metalness: 0.6, roughness: 0.5 }));

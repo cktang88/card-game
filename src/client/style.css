@@ -90,7 +90,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 #board { position: absolute; inset: 0; }
 #board canvas { display: block; }
 #topbar { position: absolute; top: 0; left: 0; right: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 12px; padding: 10px 16px 26px; pointer-events: none;
-  background: linear-gradient(rgba(5, 4, 3, .9), rgba(5, 4, 3, .6) 60%, transparent); }
+  background: linear-gradient(rgba(5, 4, 3, .82), rgba(5, 4, 3, .35) 60%, transparent); }
 #topbar .side { display: flex; flex-direction: column; gap: 5px; }
 #topbar .opp { align-items: flex-end; }
 .fname { font-family: var(--display); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 13px; text-shadow: 0 2px 3px #000; }
@@ -117,7 +117,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 #log:empty { display: none; }
 @media (max-width: 800px) { #log { display: none; } }
 #bottombar { position: absolute; left: 0; right: 0; bottom: 0; padding-bottom: 18px !important; display: grid; grid-template-columns: auto 1fr auto; align-items: end; gap: 12px; padding: 10px 14px 12px;
-  background: linear-gradient(transparent, rgba(5, 4, 3, .85) 45%); }
+  background: linear-gradient(transparent, rgba(5, 4, 3, .7) 50%); }
 #cp { position: relative; width: 86px; height: 86px; display: grid; place-items: center; align-content: center; background: url(/ui/badge_cost.webp) center / contain no-repeat; filter: drop-shadow(0 4px 8px #000); }
 #cp-n { font-family: var(--display); font-weight: 900; font-size: 32px; line-height: 1; color: #2a1806; text-shadow: 0 1px 0 rgba(255, 235, 180, .7); }
 #cp small { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); font-family: var(--display); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--brass); white-space: nowrap; text-shadow: 0 1px 2px #000; }
