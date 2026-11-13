@@ -98,3 +98,24 @@ No copyrighted reference images were downloaded or used as inputs.
 - **Failed for sameness:** Loudhorn Broadcast, Mole Brigade Sappers, Iron Shieldwall and Over the Top! all came out as the same "single gas-masked trooper standing with a rifle". The faction bible plus "heroic subject" pulls the model toward that.
 - **Fix (per-card, global prompt unchanged):** subjects that state the action, the camera angle, and that nobody stands still. The redos show a towering loudspeaker mast from below, sappers digging at ground level, a shield wall head-on taking fire, and a ladder scramble seen from inside the trench. All four were approved.
 - **Learning:** for infantry factions, write subjects as *actions plus camera angle*, not "a squad of X".
+
+## brood: the remaining 11 Brood cards + 4 redos
+- **Cost:** about $0.36.
+- **Motif consistency:** excellent. The fungal-coral chitin and green glow appear on every card.
+- **Approved first pass:**
+  - Grub (larva with a shape forming inside)
+  - Brood Heart
+  - Nightmaw Leech (latching onto a Concord soldier)
+  - Overmind (floating brain)
+  - Psychic Scream (shockwave, Concord soldiers floored)
+  - Skitterlings
+  - Acid Spitter (acid arc)
+- **Failed for sameness:** Lashworm, Mimics, Pack and Pheromone all came out as the same "many-legged coral beast". The Lashworm wasn't a worm, and the Mimics weren't humanoid.
+- **Fix:** silhouette-first subjects:
+  - Lashworm: a sinuous worm erupting vertically.
+  - Mimics: humanoid fakes in stolen greatcoats and helmets.
+  - Pack: hounds running, side view.
+  - Pheromone: a bursting spore cloud.
+
+  All four were approved; the Pheromone is still creature-forward but distinct.
+- **Learning:** for a creature faction, lead each subject with the *silhouette* (worm, humanoid, hound, cloud), not with "a beast that…".
