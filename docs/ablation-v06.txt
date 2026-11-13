@@ -1,0 +1,13 @@
+baseline                   skill   84%  leadΔ 0.55  decided R5.1  close   39%  obvious   15%  comeback   23%  len 7.2  morale   54%  margin 2.3  faction spread   14%
+no column hands/Edge       skill   81%  leadΔ 0.60  decided R5.3  close   38%  obvious   16%  comeback   29%  len 7.2  morale   54%  margin 2.3  faction spread    9%
+no flanking                skill   82%  leadΔ 0.58  decided R5.3  close   38%  obvious   16%  comeback   24%  len 7.3  morale   52%  margin 2.5  faction spread    4%
+no breach drain            skill   93%  leadΔ 0.68  decided R5.9  close   39%  obvious   13%  comeback   33%  len 8.0  morale   82%  margin 2.4  faction spread   24%
+no cohesion regen          skill   83%  leadΔ 0.62  decided R5.0  close   40%  obvious   15%  comeback   25%  len 7.1  morale   56%  margin 2.1  faction spread   24%
+no terrain                 skill   83%  leadΔ 0.57  decided R5.1  close   39%  obvious   16%  comeback   22%  len 7.1  morale   52%  margin 2.7  faction spread   11%
+no ambush bonus            skill   83%  leadΔ 0.65  decided R5.5  close   38%  obvious   16%  comeback   32%  len 7.2  morale   51%  margin 2.7  faction spread   38%
+no rear-strike bonus       skill   84%  leadΔ 0.55  decided R5.1  close   39%  obvious   15%  comeback   23%  len 7.2  morale   54%  margin 2.3  faction spread   15%
+no underdog CP             skill   85%  leadΔ 0.53  decided R5.2  close   39%  obvious   15%  comeback   24%  len 7.2  morale   55%  margin 2.5  faction spread   14%
+no escalation (stakes 1)   skill   84%  leadΔ 0.55  decided R5.1  close   39%  obvious   15%  comeback   23%  len 7.2  morale   54%  margin 2.3  faction spread   14%
+5 columns                  skill   82%  leadΔ 0.67  decided R5.4  close   37%  obvious   15%  comeback   31%  len 7.3  morale   58%  margin 3.1  faction spread   13%
+
+[exited with code 0]

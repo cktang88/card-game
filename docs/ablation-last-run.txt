@@ -1,1 +1,1 @@
-baseline                   skill   82%  leadΔ 0.28  decided R5.7  close   43%  obvious   17%  comeback   20%  len 7.0  morale   56%  margin 2.8  faction spread   25%
+STRIPPED + 7 cols          skill   89%  leadΔ 0.75  decided R6.2  close   40%  obvious   14%  comeback   32%  len 8.0  morale   81%  margin 2.3  faction spread   24%

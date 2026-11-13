@@ -1,0 +1,8 @@
+B break6 n+0               skill(steel>greedy)  81%  skill(greedy>random)  96%  leadΔ 0.15  decided 61% of game  close  68%  obvious  16%  comeback   2%  draws  23%  len 4.5  routs 4.5 kills 3.3  longest chain 1.8
+B break6 n+1               skill(steel>greedy)  79%  skill(greedy>random)  94%  leadΔ 0.06  decided 46% of game  close  65%  obvious  21%  comeback   0%  draws  32%  len 4.9  routs 3.4 kills 0.9  longest chain 1.4
+B break6 press n+0         skill(steel>greedy)  85%  skill(greedy>random)  91%  leadΔ 0.27  decided 81% of game  close  85%  obvious   6%  comeback   6%  draws  13%  len 3.1  routs 4.8 kills 3.4  longest chain 1.8
+B break6 press n+1         skill(steel>greedy)  79%  skill(greedy>random)  95%  leadΔ 0.15  decided 74% of game  close  72%  obvious  13%  comeback   0%  draws  16%  len 3.4  routs 4.5 kills 1.4  longest chain 1.7
+B break8 n+0               skill(steel>greedy)  86%  skill(greedy>random)  93%  leadΔ 0.17  decided 58% of game  close  67%  obvious  17%  comeback   8%  draws  21%  len 4.9  routs 4.5 kills 3.6  longest chain 1.8
+B break8 n+1               skill(steel>greedy)  79%  skill(greedy>random)  94%  leadΔ 0.06  decided 46% of game  close  65%  obvious  22%  comeback   0%  draws  30%  len 5.0  routs 3.5 kills 0.9  longest chain 1.5
+B break8 press n+0         skill(steel>greedy)  88%  skill(greedy>random)  91%  leadΔ 0.29  decided 73% of game  close  81%  obvious  10%  comeback   8%  draws  11%  len 3.9  routs 5.8 kills 4.1  longest chain 2.0
+B break8 press n+1         skill(steel>greedy)  79%  skill(greedy>random)  96%  leadΔ 0.17  decided 62% of game  close  70%  obvious  17%  comeback   2%  draws  15%  len 4.3  routs 5.1 kills 1.5  longest chain 1.8

@@ -98,3 +98,43 @@ Next: knives' payoff (v_needle and v_knives are both low), then the synapse text
 ## Status after #12
 All entries fall within roughly 38–57%. Brood synapse and balanced sit at the bottom edge (~40). Length, morale, seat, comeback and dead cards all PASS. Card outliers: occasional single-run flags (b_spitter, v_needle), inside the noise.
 **Process note:** every remaining gap is now 2–5 points, about the size of the sim's noise. More stat tuning against a greedy bot risks fitting the bot instead of the game. **The next step is a human playtest (DESIGN_PROCESS §6), not more sim tuning.**
+
+---
+# Phase 2: stop tuning, find the fun (user direction: "follow the research process, experiment until we find good mechanics, don't tune cards on bad mechanics, don't tunnel vision")
+
+## 13. Steelman AI (prerequisite for all measurements)
+AI v2 (`level: 'steel'`) predicts the opponent's reply on sampled hidden worlds. It never sees their hand or cloaked
+identities. It beats the old greedy AI **81%** of 504 games. Per-deck tuning was started and then **stopped on purpose**:
+tuning numbers on unvalidated mechanics is the wrong order.
+
+## 14. Fun proxies
+Added per game: lead changes, the round the game was decided, comeback rate, and skill expression (steel vs greedy; greedy vs random).
+"Close decisions" was tried and **found unreliable** (near-duplicate plans inflate it), so it isn't used for decisions.
+
+## 15. Divergent concept round → docs/concepts/
+Four independent designers (each saw only the target experience and constraints, never our rules) pitched A Formation,
+B Fault Lines, C Fault Line and D Ledger of Nerve. **All four converged** on 3 lanes, threshold morale, rout contagion with quiet kills,
+and a secret per-lane bet. v0.6 was the outlier on every one of these. See concepts/JUDGEMENT.md.
+
+## 16. Prototype cores (src/proto, vanilla cards, steelman bots), 120 games per variant
+- **C as pitched stalls:** 1.9 routs/game, lead changes 0.03. Without the Stake, nothing happens (52% draws, 0 routs).
+  **Reading the logs** showed why: both bots match lane totals and stack shield-reinforcements, so every hit is absorbed.
+- **C − shields:** routs 3.4, draws 3%, comebacks 23%, skill 92%. Hypothesis confirmed: shields caused the turtling.
+- **B as pitched is too lethal:** games end in 2.4 of 5 rounds, comebacks 0%. Rank support and +Nerve didn't fix it.
+  A sweep found the most alive region at break 8 + Press (lead changes 0.29, 3.9 rounds, chains of 2), but comebacks stay ~8%.
+  B snowballs: losing units means taking more Pressure.
+- Prototype numbers aren't directly comparable with the full game (different length and board), but both
+  pitched cores fail their own risk tests as written, as the pitches predicted.
+
+## 17. Rule ablation of v0.6 (steelman, 240+ games per variant, docs/ablation-v06.txt)
+Removing column hands/Edge, flanking, cohesion, terrain, rear bonus, underdog CP or escalation: **no measurable change**.
+Those rules are dead weight. Removing **breach drain improves everything** (skill 84→93, lead changes 0.55→0.68, comebacks 23→33,
+morale 54→82%). 5 columns beats 7.
+**Combined, STRIPPED (all of those off, 5 columns):** skill **92%**, lead changes **0.85**, decided **R6.5**, comebacks **39%**,
+morale **82%**. Better than full v0.6 on every proxy, with ~8 fewer rules. (7 columns stripped: 89 / 0.75 / R6.2 / 32%.)
+The stripped game is close to the outsiders' skeleton: few lanes, Front/Back, morale as the main path.
+
+**Decision:** STRIPPED becomes the v0.7 baseline. Next, port the converged ideas onto it one at a time, judged on the same proxies
+plus log reading: (a) a secret per-lane Stake in place of global escalation, (b) stronger rout contagion with quiet kills,
+(c) fresh-threshold morale in place of accumulated Shock (the "morale ≠ health" fix). Faction identity lost with the cut rules
+(Hold the Line, Drilled, Flood, One Organism) must be rebuilt on cards or a single faction rule each.

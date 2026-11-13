@@ -24,6 +24,8 @@ export const VARIANTS: [string, string[]][] = [
   ['no underdog CP', ['--rule=underdogCp=0']],
   ['no escalation (stakes 1)', ['--rule=maxStakes=1']],
   ['5 columns', ['--cols=5']],
+  ['STRIPPED (all dead rules off, no drain, 5 cols)', ['--cols=5', '--rule=formations=false', '--rule=flank=0', '--rule=flood=0', '--rule=breachDrain=0', '--rule=cohesionMax=0', '--rule=drilled=0', '--rule=terrainColumns=-1', '--rule=rear=0', '--rule=underdogCp=0', '--rule=maxStakes=1']],
+  ['STRIPPED + 7 cols', ['--rule=formations=false', '--rule=flank=0', '--rule=flood=0', '--rule=breachDrain=0', '--rule=cohesionMax=0', '--rule=drilled=0', '--rule=terrainColumns=-1', '--rule=rear=0', '--rule=underdogCp=0', '--rule=maxStakes=1']],
 ];
 
 const F: Faction[] = ['concord', 'brood', 'hush'];
