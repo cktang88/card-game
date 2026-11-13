@@ -6,7 +6,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { CARD_BY_ID, FACTION_INFO, Faction } from '../shared/cards';
 import { Pos, ROWS, key, rowWidth } from '../shared/hex';
 import {
-  Formation, GameEvent, GameState, PlayerId, has, isLinked, isShaken, lead, leadDef, linkSource, maxNerve, power,
+  Formation, GameEvent, GameState, PlayerId, has, isFearless, isHQ, lead, leadDef, linkSource, maxNerve, power,
 } from '../shared/engine';
 
 const R = 1;              // hex radius
@@ -98,14 +98,18 @@ export function glyph(name: string): string {
   return ((w[0]?.[0] ?? '?') + (w[1]?.[0] ?? '')).toUpperCase();
 }
 
+/** Wavering: at half Nerve or less. Purely a warning label; no rules attached. */
+const wavering = (f: Formation) => f.morale * 2 <= maxNerve(f);
+
 function labelCanvas(f: Formation, s: GameState, viewer: PlayerId): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = 256; c.height = 96;
   const g = c.getContext('2d')!;
   const unknown = f.cards[0]?.id === '?';
   const pw = unknown ? '?' : String(power(f));
-  const fearless = !unknown && (has(f, 'fearless') || has(f, 'hq') || isLinked(s, f));
+  const fearless = !unknown && isFearless(s, f);
   const nv = unknown ? '?' : fearless ? '∞' : `${Math.max(0, f.morale)}`;
+  if (!unknown && isHQ(f)) return c;
   const box = (x: number, bg1: string, bg2: string, txt: string) => {
     const gr = g.createLinearGradient(0, 8, 0, 64); gr.addColorStop(0, bg1); gr.addColorStop(1, bg2);
     g.fillStyle = gr; g.beginPath(); g.roundRect(x, 8, 76, 56, 8); g.fill();
@@ -120,8 +124,7 @@ function labelCanvas(f: Formation, s: GameState, viewer: PlayerId): HTMLCanvasEl
     g.fillStyle = '#f2e0b0';
     for (let i = 0; i < f.cards.length; i++) { g.beginPath(); g.arc(128 - (f.cards.length - 1) * 9 + i * 18, 82, 6, 0, Math.PI * 2); g.fill(); }
   }
-  if (f.broken) { g.fillStyle = '#ff4a3a'; g.font = '700 22px Oswald'; g.textAlign = 'center'; g.fillText('BROKEN', 128, 84); }
-  else if (!unknown && !fearless && isShaken(f)) { g.fillStyle = '#ffb03a'; g.font = '700 20px Oswald'; g.textAlign = 'center'; g.fillText('SHAKEN', 128, 84); }
+  if (!unknown && !fearless && wavering(f)) { g.fillStyle = '#ffb03a'; g.font = '700 20px Oswald'; g.textAlign = 'center'; g.fillText('WAVERING', 128, 84); }
   void viewer; void maxNerve;
   return c;
 }
@@ -277,7 +280,7 @@ export class Board3D {
       if (ring) (ring.material as THREE.ShaderMaterial).uniforms.uColor.value = t.relayOwner === -1 ? new THREE.Color('#9aa0b0') : t.relayOwner === viewer ? ME_COLOR : OPP_COLOR;
       const tile = this.tiles.get(key(t.pos))!;
       const mat = tile.material as THREE.MeshStandardMaterial;
-      mat.emissive = new THREE.Color(t.fortified && !t.melted ? '#3a2a10' : t.melted ? '#1f3a10' : '#000');
+      mat.emissive = new THREE.Color(t.fortified ? '#3a2a10' : '#000');
     }
     const seen = new Set<number>();
     for (const f of s.formations) {
@@ -288,12 +291,11 @@ export class Board3D {
     }
     for (const [fid, tk] of this.tokens) if (!seen.has(fid)) { this.root.remove(tk.group); this.tokens.delete(fid); }
     this.drawLinks(s);
-    this.drawInbound(s, viewer);
   }
 
   private makeToken(f: Formation, s: GameState, viewer: PlayerId): Token {
     const group = new THREE.Group();
-    const isHq = has(f, 'hq');
+    const isHq = isHQ(f);
     const rad = isHq ? 0.86 : 0.7;
     const h = isHq ? 0.6 : 0.22;
     const body = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad * 1.05, h, 6), new THREE.MeshStandardMaterial({ color: '#1c1b1e', metalness: 0.6, roughness: 0.4 }));
@@ -321,7 +323,7 @@ export class Board3D {
     tk.pos = f.pos;
     const id = lead(f)?.id ?? '?';
     const fac = s.players[f.owner].faction;
-    const sig = [id, power(f), f.morale, f.broken, f.cards.length, f.cloaked, isShaken(f), isLinked(s, f), lead(f)?.grow ?? 0].join('|');
+    const sig = [id, power(f), f.morale, f.cards.length, f.cloaked, isFearless(s, f), lead(f)?.grow ?? 0].join('|');
     if (sig === tk.sig) return;
     tk.sig = sig;
     (tk.top.material as THREE.MeshStandardMaterial).map = tokenTexture(id, fac);
@@ -346,9 +348,10 @@ export class Board3D {
     (tk.top.material as THREE.MeshStandardMaterial).transparent = f.cloaked;
     (tk.top.material as THREE.MeshStandardMaterial).opacity = f.cloaked ? (f.owner === viewer ? 0.6 : 0.25) : 1;
     // broken smoke
-    if (f.broken && !tk.smoke) { tk.smoke = makeSmoke(); tk.group.add(tk.smoke); }
-    else if (!f.broken && tk.smoke) { tk.group.remove(tk.smoke); tk.smoke = undefined; }
-    (tk.body.material as THREE.MeshStandardMaterial).emissive = new THREE.Color(f.broken ? '#5a0e08' : '#000');
+    const shaky = id !== '?' && !isHQ(f) && !isFearless(s, f) && wavering(f);
+    if (shaky && !tk.smoke) { tk.smoke = makeSmoke(); tk.group.add(tk.smoke); }
+    else if (!shaky && tk.smoke) { tk.group.remove(tk.smoke); tk.smoke = undefined; }
+    (tk.body.material as THREE.MeshStandardMaterial).emissive = new THREE.Color(shaky ? '#3a0e08' : '#000');
     // evolve glow
     const grow = lead(f)?.grow ?? 0;
     if (grow > 0 && !tk.evolve) {
@@ -357,7 +360,7 @@ export class Board3D {
       tk.evolve.rotation.x = -Math.PI / 2; tk.evolve.position.y = 0.02;
       tk.group.add(tk.evolve);
     } else if (grow === 0 && tk.evolve) { tk.group.remove(tk.evolve); tk.evolve = undefined; }
-    tk.group.userData.shaken = isShaken(f) && !f.broken;
+    tk.group.userData.shaken = shaky;
     void leadDef;
   }
 
@@ -374,20 +377,6 @@ export class Board3D {
       const line = new THREE.Line(g, new THREE.LineDashedMaterial({ color: '#9dff5a', dashSize: 0.12, gapSize: 0.08, transparent: true, opacity: 0.8 }));
       line.computeLineDistances();
       this.links.add(line);
-    }
-  }
-
-  private inboundBeams: THREE.Object3D[] = [];
-  private drawInbound(s: GameState, viewer: PlayerId) {
-    for (const b of this.inboundBeams) this.root.remove(b);
-    this.inboundBeams = [];
-    for (const i of s.inbound) {
-      const m = beamMat(i.owner === viewer ? ME_COLOR.clone() : OPP_COLOR.clone()); this.shaders.push(m);
-      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.7, 7, 6, 1, true), m);
-      const [x, z] = hexXZ(i.pos);
-      beam.position.set(x, this.topY(i.pos) + 3.5, z);
-      this.root.add(beam);
-      this.inboundBeams.push(beam);
     }
   }
 

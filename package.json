@@ -11,7 +11,8 @@
     "start": "node dist/server.js",
     "sim": "tsx src/sim/run.ts",
     "typecheck": "tsc --noEmit",
-    "art": "tsx scripts/gen-art.ts"
+    "art": "tsx scripts/gen-art.ts",
+    "cards": "tsx scripts/card-doc.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

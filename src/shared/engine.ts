@@ -1,35 +1,31 @@
-// Shatterline rules engine (v0.2 — auto-resolve).
+// Shatterline rules engine (v0.3: simplified, no movement).
 //
-// A round:   ORDERS (both players secretly place cards) → REVEAL → RESOLVE
-//            RESOLVE = Advance → Ranged volley → Melee clash → Routs → Upkeep
-// The only player decisions are what to play, where, and the stakes.
+// A round:  ORDERS  both players secretly place cards
+//           REVEAL  placements land; On Reveal effects; tactics
+//           STRIKE  every unit strikes once, all at the same time
+//           FALLOUT broken / destroyed units leave; adjacent allies panic
+//           UPKEEP  "each round" effects; Relays drain Resolve
+// Units never move unless a card says so.
 
-import { CARD_BY_ID, CardDef, Faction, HQ_ID, Keyword, isHeavy, isTactic, rangeOf, speedOf, starterDeck } from './cards';
-import { Pos, ROWS, allHexes, distance, inBounds, key, lineBetween, neighbors, samePos } from './hex';
+import { CARD_BY_ID, CardDef, Faction, HQ_ID, Keyword, isTactic, rangeOf, starterDeck } from './cards';
+import { Pos, ROWS, allHexes, distance, inBounds, key, neighbors, samePos } from './hex';
 import { Terrain, buildMap } from './map';
 
 // ───────────────────────── tunables ─────────────────────────
 export const RULES = {
   maxRounds: 8,
-  startResolve: 16,
+  startResolve: 9,
   handStart: 5,
   handMax: 8,
   drawPerRound: 2,
   stackMax: 3,
   swarmStackMax: 5,
-  breakCost: 3,
-  broodBreakCost: 1,
-  synapseLossCost: 3,
-  cardDeathCost: 1,
-  hqLossCost: 6,
-  siegeDrain: 1,
-  relayDrain: 1,
   cpCap: 7,
-  carryOver: 1,
   maxStakes: 8,
-  ambush: 2,
-  flank: 1,
-  feralPower: 1,
+  ambush: 1,
+  flankMax: 2,
+  relayDrain: 1,
+  evolveMax: 3,
 };
 export const cpForRound = (round: number) => Math.min(round + 1, RULES.cpCap);
 
@@ -38,28 +34,24 @@ export type PlayerId = 0 | 1;
 
 export interface CardInst { uid: number; id: string; dmg: number; grow?: number; token?: boolean }
 
-export interface Buffs { power: number; hold: boolean; charge: boolean; speed: number; confused: boolean }
-const noBuffs = (): Buffs => ({ power: 0, hold: false, charge: false, speed: 0, confused: false });
+export interface Buffs { power: number; silenced: boolean }
+const noBuffs = (): Buffs => ({ power: 0, silenced: false });
 
 export interface Formation {
   fid: number;
   owner: PlayerId;
   pos: Pos;
-  cards: CardInst[];      // bottom → top; last is the Lead
+  cards: CardInst[];      // bottom → top; the top card (Lead) has the active ability
   morale: number;         // current Nerve
-  broken: boolean;
   deployedRound: number;
   cloaked: boolean;
-  moved: boolean;         // moved this round (for Charge)
-  buffs: Buffs;
+  buffs: Buffs;           // this round only
 }
 
-export interface Tile { pos: Pos; elev: number; terrain: Terrain; fortified: boolean; melted: boolean; relayOwner: -1 | PlayerId }
+export interface Tile { pos: Pos; elev: number; terrain: Terrain; fortified: boolean; relayOwner: -1 | PlayerId }
 
 export interface DeployOrder { uid: number; pos: Pos }
 export interface Orders { deploys: DeployOrder[]; escalate?: boolean }
-
-export interface Inbound { owner: PlayerId; pos: Pos; card: CardInst }
 
 export interface PlayerState {
   faction: Faction;
@@ -72,21 +64,20 @@ export interface PlayerState {
   orders: Orders | null;
 }
 
-export type Step = 'reveal' | 'advance' | 'ranged' | 'melee' | 'rout' | 'upkeep';
+export type Step = 'reveal' | 'strike' | 'fallout' | 'upkeep';
 
 export type GameEvent =
   | { t: 'step'; step: Step }
   | { t: 'deploy'; fid: number; pos: Pos; id: string; reinforce: boolean; owner: PlayerId }
-  | { t: 'inbound'; pos: Pos; owner: PlayerId }
+  | { t: 'bounce'; pos: Pos; owner: PlayerId }
   | { t: 'tactic'; id: string; pos: Pos; owner: PlayerId }
   | { t: 'move'; fid: number; from: Pos; to: Pos }
   | { t: 'strike'; fid: number; target: number; from: Pos; to: Pos; amount: number; lethal: boolean }
   | { t: 'shock'; fid: number; pos: Pos; amount: number }
   | { t: 'damage'; fid: number; pos: Pos; amount: number }
+  | { t: 'heal'; fid: number; pos: Pos; amount: number }
   | { t: 'break'; fid: number; pos: Pos }
   | { t: 'destroy'; fid: number; pos: Pos }
-  | { t: 'surrender'; fid: number; pos: Pos }
-  | { t: 'rally'; fid: number; pos: Pos }
   | { t: 'reveal'; fid: number; pos: Pos }
   | { t: 'evolve'; fid: number; pos: Pos }
   | { t: 'resolve'; player: PlayerId; delta: number; reason: string }
@@ -99,17 +90,15 @@ export interface GameState {
   players: [PlayerState, PlayerState];
   tiles: Tile[];
   formations: Formation[];
-  inbound: Inbound[];
   nextId: number;
   initiative: PlayerId;
   stakes: number;
   pendingEscalations: number;
   winner: null | -1 | PlayerId;
   endReason: string;
-  fedThisRound: number[];
   log: string[];
   events: GameEvent[];
-  stats: { breaks: [number, number]; cardsLost: [number, number]; surrenders: [number, number]; resolveBy: Record<string, number> };
+  stats: { breaks: [number, number]; destroyed: [number, number]; resolveBy: Record<string, number> };
 }
 
 export type Action =
@@ -138,10 +127,10 @@ export function newGame(f0: Faction, f1: Faction, seed = Date.now() & 0xffffffff
   const s: GameState = {
     rng: seed, round: 1, phase: 'orders',
     players: [mkPlayer(f0), mkPlayer(f1)],
-    tiles: allHexes().map((pos) => ({ pos, elev: map.get(key(pos))!.elev, terrain: map.get(key(pos))!.terrain, fortified: false, melted: false, relayOwner: -1 })),
-    formations: [], inbound: [], nextId: 1, initiative: 0, stakes: 1, pendingEscalations: 0,
-    winner: null, endReason: '', fedThisRound: [], log: [], events: [],
-    stats: { breaks: [0, 0], cardsLost: [0, 0], surrenders: [0, 0], resolveBy: {} },
+    tiles: allHexes().map((pos) => ({ pos, elev: map.get(key(pos))!.elev, terrain: map.get(key(pos))!.terrain, fortified: false, relayOwner: -1 })),
+    formations: [], nextId: 1, initiative: 0, stakes: 1, pendingEscalations: 0,
+    winner: null, endReason: '', log: [], events: [],
+    stats: { breaks: [0, 0], destroyed: [0, 0], resolveBy: {} },
   };
   s.initiative = rand(s) < 0.5 ? 0 : 1;
   for (const p of [0, 1] as PlayerId[]) {
@@ -161,8 +150,8 @@ function mkPlayer(f: Faction): PlayerState {
 
 function mkFormation(s: GameState, owner: PlayerId, pos: Pos, card: CardInst, round: number): Formation {
   const d = def(card);
-  return { fid: s.nextId++, owner, pos: { ...pos }, cards: [card], morale: d.nerve, broken: false, deployedRound: round,
-    cloaked: s.players[owner].faction === 'hush' && d.cls !== 'HQ', moved: false, buffs: noBuffs() };
+  return { fid: s.nextId++, owner, pos: { ...pos }, cards: [card], morale: d.nerve, deployedRound: round,
+    cloaked: s.players[owner].faction === 'hush' && d.cls !== 'HQ', buffs: noBuffs() };
 }
 
 function draw(s: GameState, p: PlayerId) {
@@ -177,14 +166,15 @@ function draw(s: GameState, p: PlayerId) {
 export const def = (c: CardInst): CardDef => CARD_BY_ID[c.id];
 export const lead = (f: Formation): CardInst => f.cards[f.cards.length - 1];
 export const leadDef = (f: Formation): CardDef => def(lead(f));
-export const has = (f: Formation, k: Keyword) => leadDef(f).keywords.includes(k);
+export const has = (f: Formation, k: Keyword) => !!f.cards.length && !f.buffs.silenced && leadDef(f).keywords.includes(k);
 export const other = (p: PlayerId): PlayerId => (1 - p) as PlayerId;
 export const cardPower = (c: CardInst) => def(c).power + (c.grow ?? 0) - c.dmg;
 export const power = (f: Formation) => f.cards.reduce((a, c) => a + Math.max(0, cardPower(c)), 0);
 export const maxNerve = (f: Formation) => f.cards.reduce((a, c) => a + def(c).nerve, 0);
-const isFearlessBase = (f: Formation) => has(f, 'fearless') || has(f, 'hq');
-export const isShaken = (f: Formation) => !f.broken && !isFearlessBase(f) && f.morale <= Math.floor(maxNerve(f) / 2);
+export const isHQ = (f: Formation) => !!f.cards.length && leadDef(f).cls === 'HQ';
 export const faction = (s: GameState, f: Formation) => s.players[f.owner].faction;
+export const isToken = (f: Formation) => f.cards.every((c) => c.token);
+const costOf = (f: Formation) => f.cards.reduce((a, c) => a + def(c).cost, 0);
 
 export function tileAt(s: GameState, p: Pos): Tile { return s.tiles.find((t) => samePos(t.pos, p))!; }
 export function formationAt(s: GameState, p: Pos): Formation | undefined { return s.formations.find((f) => samePos(f.pos, p)); }
@@ -192,95 +182,58 @@ export function getF(s: GameState, fid: number) { return s.formations.find((f) =
 export const elev = (s: GameState, p: Pos) => tileAt(s, p).elev;
 export const alive = (s: GameState, f: Formation) => s.formations.includes(f);
 
-export function homeRows(p: PlayerId): number[] { return p === 0 ? [ROWS - 1, ROWS - 2] : [0, 1]; }
-export const homeEdge = (p: PlayerId) => (p === 0 ? ROWS - 1 : 0);
-export const inHome = (p: PlayerId, pos: Pos) => homeRows(p).includes(pos.row);
-/** P0 attacks "up" the board (row decreasing), P1 attacks "down". */
-export const fwd = (p: PlayerId) => (p === 0 ? -1 : 1);
-export const inFrontArc = (f: Formation, p: Pos) => distance(f.pos, p) === 1 && p.row === f.pos.row + fwd(f.owner);
-
 export function adjFormations(s: GameState, pos: Pos): Formation[] {
   return neighbors(pos).map((n) => formationAt(s, n)).filter((x): x is Formation => !!x);
 }
-const adjEnemies = (s: GameState, f: Formation) => adjFormations(s, f.pos).filter((o) => o.owner !== f.owner && !o.broken);
-const adjFriends = (s: GameState, f: Formation) => adjFormations(s, f.pos).filter((o) => o.owner === f.owner && !o.broken);
+/** Units (not HQs) next to a hex. */
+export const adjUnits = (s: GameState, pos: Pos) => adjFormations(s, pos).filter((o) => !isHQ(o));
+const adjEnemies = (s: GameState, f: Formation) => adjUnits(s, f.pos).filter((o) => o.owner !== f.owner);
+const adjAllies = (s: GameState, f: Formation) => adjUnits(s, f.pos).filter((o) => o.owner === f.owner);
 
 export function linkSource(s: GameState, f: Formation): Formation | undefined {
-  if (faction(s, f) !== 'brood') return undefined;
-  return s.formations.find((o) => o !== f && o.owner === f.owner && !o.broken &&
-    (has(o, 'synapse') || has(o, 'synapseBig')) && distance(o.pos, f.pos) <= (has(o, 'synapseBig') ? 3 : 2));
+  if (faction(s, f) !== 'brood' || isHQ(f) || has(f, 'synapse')) return undefined;
+  return s.formations.find((o) => o !== f && o.owner === f.owner && has(o, 'synapse') && distance(o.pos, f.pos) <= 1);
 }
 export const isLinked = (s: GameState, f: Formation) => !!linkSource(s, f);
-/** Fearless formations never lose Nerve: Shock hits them as damage instead. */
-export const isFearless = (s: GameState, f: Formation) => isFearlessBase(f) || isLinked(s, f);
+/** Fearless units never break: Shock hits them as damage instead (structures, linked Brood). */
+export const isFearless = (s: GameState, f: Formation) => has(f, 'fearless') || isLinked(s, f);
 
+/** Concord faction rule: Shoulder to Shoulder: +1 when next to 2+ allied units. */
 export function inFiringLine(s: GameState, f: Formation): boolean {
-  if (faction(s, f) !== 'concord' || has(f, 'hq')) return false;
-  // 3+ Concord formations side by side in the same row
-  let n = 1;
-  for (const dc of [-1, 1]) {
-    for (let k = 1; k < 3; k++) {
-      const o = formationAt(s, { col: f.pos.col + dc * k, row: f.pos.row });
-      if (!o || o.owner !== f.owner || o.broken || has(o, 'hq')) break;
-      n++;
-    }
-  }
-  return n >= 3;
-}
-
-export function isCreep(s: GameState, pos: Pos, owner: PlayerId): boolean {
-  return adjFormations(s, pos).some((o) => o.owner === owner && has(o, 'creep'));
+  if (faction(s, f) !== 'concord' || isHQ(f)) return false;
+  return adjAllies(s, f).length >= 2;
 }
 
 export function hasCover(s: GameState, f: Formation): boolean {
   const t = tileAt(s, f.pos);
-  if (!t.melted && (t.terrain === 'ruins' || t.fortified)) return true;
-  if (leadDef(f).cls === 'Infantry' && adjFriends(s, f).some((o) => has(o, 'coverAura'))) return true;
-  return false;
-}
-
-export function hasLOS(s: GameState, from: Pos, to: Pos, indirect: boolean): boolean {
-  if (indirect) return true;
-  const e0 = elev(s, from), e1 = elev(s, to);
-  for (const p of lineBetween(from, to)) {
-    if (!inBounds(p)) continue;
-    const e = elev(s, p);
-    if (e > Math.max(e0, e1)) return false;
-    if (formationAt(s, p) && e0 <= e) return false;
-  }
-  return true;
+  return t.terrain === 'ruins' || t.fortified;
 }
 
 /** Enemies this formation could strike from where it stands. */
 export function targetsInReach(s: GameState, f: Formation): Formation[] {
-  const d = leadDef(f);
-  const r = rangeOf(d);
-  if (r === 0 || f.broken) return [];
-  const indirect = d.keywords.includes('indirect');
-  return s.formations.filter((o) => {
-    if (o.owner === f.owner) return false;
-    const dist = distance(o.pos, f.pos);
-    if (dist === 1) return true;
-    if (dist > r) return false;
-    if (o.cloaked && !indirect) return false;
-    return hasLOS(s, f.pos, o.pos, indirect);
+  const r = rangeOf(leadDef(f));
+  if (r === 0 || isHQ(f)) return [];
+  const inReach = s.formations.filter((o) => {
+    if (o.owner === f.owner || isHQ(o)) return false;
+    const d = distance(o.pos, f.pos);
+    return d === 1 || (d <= r && !o.cloaked);
   });
+  if (has(f, 'artillery')) return inReach;
+  const guards = inReach.filter((o) => has(o, 'guard'));
+  return guards.length ? guards : inReach;
 }
 
-/** THE targeting rule (same for everyone, keywords excepted):
- *  nearest → in front arc → lowest Nerve → leftmost. Hunters pick the costliest. */
+/** THE targeting rule (same for everyone; Hunter excepted):
+ *  nearest → lowest Nerve → leftmost. */
 export function chooseTarget(s: GameState, f: Formation): Formation | undefined {
   const ts = targetsInReach(s, f);
   if (!ts.length) return undefined;
   const hunter = has(f, 'hunter');
   const score = (o: Formation) => [
-    hunter ? -leadDef(o).cost : 0,
+    hunter ? -costOf(o) : 0,
     distance(o.pos, f.pos),
-    inFrontArc(f, o.pos) ? 0 : 1,
-    has(o, 'hq') ? 1 : 0,
-    o.cloaked ? 99 : (isFearless(s, o) ? 50 + power(o) : o.morale),
-    o.pos.col,
-    o.pos.row,
+    o.cloaked ? 99 : isFearless(s, o) ? 50 + power(o) : o.morale,
+    o.pos.col, o.pos.row,
   ];
   return ts.sort((a, b) => {
     const A = score(a), B = score(b);
@@ -290,10 +243,9 @@ export function chooseTarget(s: GameState, f: Formation): Formation | undefined 
 }
 
 // ───────────────────────── resolve / win ─────────────────────────
-function loseResolve(s: GameState, p: PlayerId, n: number, reason: string) {
+function loseResolve(s: GameState, p: PlayerId, n: number, reason: string, cat: string) {
   if (n <= 0 || s.winner !== null) return;
   s.players[p].resolve -= n;
-  const cat = /broke/.test(reason) ? 'morale' : /surrender/.test(reason) ? 'surrender' : /relay/.test(reason) ? 'relays' : /besieged/.test(reason) ? 'siege' : 'kills';
   s.stats.resolveBy[cat] = (s.stats.resolveBy[cat] ?? 0) + n;
   s.events.push({ t: 'resolve', player: p, delta: -n, reason });
   s.log.push(`P${p} −${n} Resolve (${reason}) → ${s.players[p].resolve}`);
@@ -302,7 +254,7 @@ function loseResolve(s: GameState, p: PlayerId, n: number, reason: string) {
 function checkWin(s: GameState) {
   if (s.winner !== null) return;
   const r0 = s.players[0].resolve, r1 = s.players[1].resolve;
-  if (r0 <= 0 && r1 <= 0) end(s, r0 === r1 ? -1 : r0 > r1 ? 0 : 1, 'mutual collapse');
+  if (r0 <= 0 && r1 <= 0) end(s, r0 === r1 ? -1 : r0 > r1 ? 0 : 1, 'both armies collapsed');
   else if (r0 <= 0) end(s, 1, 'army collapsed');
   else if (r1 <= 0) end(s, 0, 'army collapsed');
 }
@@ -312,99 +264,43 @@ function end(s: GameState, w: -1 | PlayerId, reason: string) {
   s.log.push(`GAME OVER: ${w === -1 ? 'draw' : 'P' + w + ' wins'} (${reason}), stakes ${s.stakes}`);
 }
 
-// ───────────────────────── damage, shock, breaks ─────────────────────────
-function removeFormation(s: GameState, f: Formation) {
-  s.formations = s.formations.filter((o) => o !== f);
+// ───────────────────────── shock & damage ─────────────────────────
+/** Shock lowers Nerve. Fearless units take it as damage instead. */
+function shock(s: GameState, f: Formation, amount: number, opts: { ignoreAuras?: boolean } = {}) {
+  if (amount <= 0 || !alive(s, f) || isHQ(f)) return;
+  if (has(f, 'decoy')) { f.morale = 0; return; }
+  if (!opts.ignoreAuras && adjAllies(s, f).some((o) => has(o, 'standard'))) amount -= 1;
+  if (amount <= 0) return;
+  if (isFearless(s, f)) return damage(s, f, amount);
+  f.morale -= amount;
+  s.events.push({ t: 'shock', fid: f.fid, pos: f.pos, amount });
 }
 
-/** Returns number of cards killed. */
-function applyDamage(s: GameState, f: Formation, amount: number): number {
-  if (amount <= 0 || !alive(s, f)) return 0;
-  if (has(f, 'decoy')) { vanishDecoy(s, f); return 0; }
+/** Damage lowers Power, top card first. A card at 0 Power is destroyed. */
+function damage(s: GameState, f: Formation, amount: number) {
+  if (amount <= 0 || !alive(s, f) || isHQ(f)) return;
+  if (has(f, 'decoy')) { f.morale = 0; return; }
+  if (has(f, 'armor')) amount -= 1;
+  if (amount <= 0) return;
   s.events.push({ t: 'damage', fid: f.fid, pos: f.pos, amount });
-  let killed = 0;
   while (amount > 0 && f.cards.length) {
     const top = lead(f);
     const take = Math.min(cardPower(top), amount);
     top.dmg += take; amount -= take;
     if (cardPower(top) <= 0) {
-      f.cards.pop(); killed++;
-      if (!top.token) s.players[f.owner].discard.push(top.id);
-      s.stats.cardsLost[f.owner]++;
-      const d = def(top);
-      const cost = d.cls === 'HQ' ? RULES.hqLossCost : top.token ? 0 : d.cls === 'Synapse' ? RULES.synapseLossCost : RULES.cardDeathCost;
-      loseResolve(s, f.owner, cost, `${d.name} destroyed`);
+      f.cards.pop();
+      if (!top.token) { s.players[f.owner].discard.push(top.id); loseResolve(s, f.owner, 1, `${def(top).name} destroyed`, 'kills'); }
+      s.stats.destroyed[f.owner]++;
+      f.morale = Math.min(f.morale, maxNerve(f));
     }
   }
-  if (!f.cards.length) {
-    removeFormation(s, f);
-    s.events.push({ t: 'destroy', fid: f.fid, pos: f.pos });
-    s.log.push(`#${f.fid} (P${f.owner}) wiped out`);
-    // Watching a unit get wiped out shakes its neighbours.
-    for (const o of adjFormations(s, f.pos)) if (o.owner === f.owner) panic(s, o, 1);
-  } else {
-    f.morale = Math.min(f.morale, maxNerve(f));
-    if (killed) panic(s, f, 1);
-  }
-  return killed;
 }
 
-/** Morale damage from an attack or effect. Fearless formations take it as damage instead. */
-function applyShock(s: GameState, f: Formation, amount: number, opts: { dirge?: boolean } = {}): void {
-  if (amount <= 0 || !alive(s, f) || f.broken) return;
-  if (has(f, 'decoy')) { vanishDecoy(s, f); return; }
-  if (!opts.dirge && adjFriends(s, f).some((o) => has(o, 'standard'))) amount -= 1;
-  if (amount <= 0) return;
-  if (isFearless(s, f)) {
-    // Linked Brood shrug off half of it; structures/HQs take it all.
-    applyDamage(s, f, isFearlessBase(f) ? amount : Math.floor(amount / 2));
-    return;
-  }
-  f.morale -= amount;
-  s.events.push({ t: 'shock', fid: f.fid, pos: f.pos, amount });
-  if (f.morale <= 0) breakFormation(s, f);
-}
-
-/** Panic: small morale knock from seeing friends fall. Fearless ignore it entirely. */
-function panic(s: GameState, f: Formation, n: number) {
-  if (!alive(s, f) || f.broken || isFearless(s, f) || has(f, 'decoy')) return;
-  f.morale -= n;
-  s.events.push({ t: 'shock', fid: f.fid, pos: f.pos, amount: n });
-  if (f.morale <= 0) breakFormation(s, f);
-}
-
-function breakFormation(s: GameState, f: Formation) {
-  f.broken = true; f.morale = 0;
-  s.stats.breaks[f.owner]++;
-  s.events.push({ t: 'break', fid: f.fid, pos: f.pos });
-  const d = leadDef(f);
-  const fac = faction(s, f);
-  const cost = f.cards.every((c) => c.token) ? 0 : fac === 'brood' ? (d.cls === 'Synapse' ? RULES.synapseLossCost : RULES.broodBreakCost) : RULES.breakCost;
-  s.log.push(`#${f.fid} ${d.name} (P${f.owner}) BREAKS`);
-  loseResolve(s, f.owner, cost, `${d.name} broke`);
-  for (const o of adjFormations(s, f.pos)) if (o.owner === f.owner) panic(s, o, 1);
-}
-
-function vanishDecoy(s: GameState, f: Formation) {
-  if (!alive(s, f)) return;
-  removeFormation(s, f);
-  for (const c of f.cards) if (!c.token) s.players[f.owner].discard.push(c.id);
-  s.events.push({ t: 'destroy', fid: f.fid, pos: f.pos });
-  s.log.push(`#${f.fid} was only a Phantom`);
-  for (const o of adjFormations(s, f.pos)) if (o.owner !== f.owner) panic(s, o, 1);
-}
-
-export function uncloak(s: GameState, f: Formation) {
-  if (!f.cloaked || !alive(s, f)) return;
-  f.cloaked = false;
-  s.events.push({ t: 'reveal', fid: f.fid, pos: f.pos });
-  if (has(f, 'decoy')) return vanishDecoy(s, f);
-  if (has(f, 'nightmare'))
-    for (const o of [...s.formations]) if (o.owner !== f.owner && distance(o.pos, f.pos) <= 2) applyShock(s, o, 1);
-  if (has(f, 'echo')) {
-    const spot = neighbors(f.pos).find((n) => !formationAt(s, n));
-    if (spot) spawnToken(s, f.owner, spot, 'v_phantom');
-  }
+function heal(s: GameState, f: Formation, n: number) {
+  if (!alive(s, f) || !f.cards.length) return;
+  const top = lead(f);
+  const h = Math.min(n, top.dmg);
+  if (h > 0) { top.dmg -= h; s.events.push({ t: 'heal', fid: f.fid, pos: f.pos, amount: h }); }
 }
 
 function spawnToken(s: GameState, owner: PlayerId, pos: Pos, id: string): Formation {
@@ -414,191 +310,149 @@ function spawnToken(s: GameState, owner: PlayerId, pos: Pos, id: string): Format
   return nf;
 }
 
-// ───────────────────────── strike math ─────────────────────────
-export interface StrikePlan { a: Formation; ad: CardDef; t: Formation; amount: number; lethal: boolean; dirge: boolean }
+export function uncloak(s: GameState, f: Formation) {
+  if (!f.cloaked || !alive(s, f)) return;
+  f.cloaked = false;
+  s.events.push({ t: 'reveal', fid: f.fid, pos: f.pos });
+  if (has(f, 'decoy')) f.morale = 0;
+}
+
+const emptyAround = (s: GameState, p: Pos) => neighbors(p).filter((n) => !formationAt(s, n) && tileAt(s, n).terrain !== 'crater');
+
+// ───────────────────────── strike ─────────────────────────
+export interface StrikePlan { a: Formation; ad: CardDef; t: Formation; amount: number; lethal: boolean; ignoreAuras: boolean }
 
 export function strikeValue(s: GameState, a: Formation, t: Formation): { amount: number; lethal: boolean } {
   const ad = leadDef(a);
+  const kw = (k: Keyword) => !a.buffs.silenced && ad.keywords.includes(k);
   const melee = distance(a.pos, t.pos) === 1;
   let v = power(a) + a.buffs.power;
   if (inFiringLine(s, a)) v += 1;
+  if (adjAllies(s, a).some((o) => has(o, 'officer'))) v += 1;
   const link = linkSource(s, a);
-  if (link && has(link, 'synapseBig')) v += 1;
-  if (adjFriends(s, a).some((o) => has(o, 'officerAura'))) v += 1;
-  if (ad.keywords.includes('frenzy'))
-    v += adjFormations(s, t.pos).filter((o) => o.owner === a.owner && o !== a && !o.broken && faction(s, o) === 'brood').length;
-  if ((ad.keywords.includes('charge') || a.buffs.charge) && a.moved && melee) v += 2;
-  if (isShaken(a)) v -= 1;
-  if (a.broken && faction(s, a) === 'brood') v += RULES.feralPower;
-  // position
-  if (!inFrontArc(t, a.pos) && !has(t, 'unflankable') && !isFearlessBase(t)) v += RULES.flank;
-  const ea = elev(s, a.pos), et = elev(s, t.pos);
-  if (ea > et) v += 1; else if (et > ea) v -= 1;
-  if (!melee && hasCover(s, t) && !ad.keywords.includes('ignoreCover')) v -= 1;
-  if (!ad.keywords.includes('dirge') && adjFriends(s, t).length >= 2) v -= 1;
-  if (t.buffs.hold && melee) v -= 1;
-  let lethal = ad.keywords.includes('lethal') || t.broken;
-  if (a.cloaked && !ad.keywords.includes('silent')) {
+  if (link && has(link, 'overmind')) v += 1;
+  // position: flanking and high ground
+  v += Math.min(RULES.flankMax, adjUnits(s, t.pos).filter((o) => o.owner === a.owner && o !== a).length);
+  if (elev(s, a.pos) > elev(s, t.pos)) v += 1;
+  if (!melee && hasCover(s, t) && !kw('artillery')) v -= 1;
+  // keywords
+  let lethal = kw('lethal');
+  if (a.cloaked && !kw('silent')) {
     v += RULES.ambush;
-    if (ad.keywords.includes('assassinate') && ['Officer', 'Synapse'].includes(leadDef(t).cls)) { v += 3; lethal = true; }
+    if (kw('assassin') && ['Officer', 'Synapse'].includes(leadDef(t).cls)) lethal = true;
   }
-  if (ad.keywords.includes('breach') && (leadDef(t).cls === 'Structure' || has(t, 'hq'))) v += 3;
-  if (ad.keywords.includes('terror') && isShaken(t)) v *= 2;
+  if (kw('terror') && !isFearless(s, t) && t.morale * 2 <= maxNerve(t)) v += 2;
+  if (kw('breach') && (isFearless(s, t) || hasCover(s, t))) v += 2;
+  if (kw('pack')) v += adjAllies(s, a).length;
   return { amount: Math.max(0, v), lethal };
 }
 
-function canStrike(f: Formation): boolean {
-  return !f.broken && !f.buffs.confused && rangeOf(leadDef(f)) > 0;
-}
-
-function resolveStrikes(s: GameState, rangedStep: boolean) {
+function strikeAll(s: GameState) {
   const plans: StrikePlan[] = [];
   for (const f of s.formations) {
-    if (!canStrike(f)) continue;
-    const isRanged = rangeOf(leadDef(f)) >= 2;
-    const engaged = adjEnemies(s, f).length > 0;
-    // Ranged units fire in the volley step unless enemies are in their face,
-    // in which case they fight at point blank in the melee step.
-    const myStep = isRanged && !engaged;
-    if (myStep !== rangedStep) continue;
-    if (has(f, 'shriek')) {
-      for (const e of adjFormations(s, f.pos).filter((o) => o.owner !== f.owner)) {
-        const v = strikeValue(s, f, e);
-        plans.push({ a: f, ad: leadDef(f), t: e, amount: v.amount, lethal: v.lethal, dirge: false });
-      }
-      continue;
+    if (isHQ(f) || rangeOf(leadDef(f)) === 0) continue;
+    const ad = leadDef(f);
+    if (has(f, 'cleave')) {
+      for (const e of adjEnemies(s, f)) plans.push({ a: f, ad, t: e, ...strikeValue(s, f, e), ignoreAuras: false });
+      if (plans.some((p) => p.a === f)) continue;
     }
     const t = chooseTarget(s, f);
     if (!t) continue;
-    const v = strikeValue(s, f, t);
-    plans.push({ a: f, ad: leadDef(f), t, amount: v.amount, lethal: v.lethal, dirge: has(f, 'dirge') });
+    plans.push({ a: f, ad, t, ...strikeValue(s, f, t), ignoreAuras: has(f, 'dirge') });
   }
-  // volley: +1 if another ally hits the same target
-  for (const p of plans) if (p.ad.keywords.includes('volley') && plans.some((q) => q !== p && q.t === p.t)) p.amount += 1;
-  // apply simultaneously
-  const cloakedAttackers = new Set<Formation>();
+  for (const p of plans) if (p.ad.keywords.includes('volley') && !p.a.buffs.silenced && plans.some((q) => q !== p && q.t === p.t && q.a.owner === p.a.owner)) p.amount += 1;
+  const revealed = new Set<Formation>();
+  const fed = new Set<Formation>();
   for (const p of plans) {
-    if (!alive(s, p.t)) continue;
+    if (!alive(s, p.t) || !p.t.cards.length) continue;
     s.events.push({ t: 'strike', fid: p.a.fid, target: p.t.fid, from: { ...p.a.pos }, to: { ...p.t.pos }, amount: p.amount, lethal: p.lethal });
     s.log.push(`${p.ad.name}(#${p.a.fid}) → ${leadDef(p.t).name}(#${p.t.fid}) ${p.amount}${p.lethal ? ' lethal' : ''}`);
-    if (p.a.cloaked && !p.ad.keywords.includes('silent')) cloakedAttackers.add(p.a);
+    if (p.a.cloaked && !p.ad.keywords.includes('silent')) revealed.add(p.a);
     if (p.t.cloaked) uncloak(s, p.t);
-    if (!alive(s, p.t)) continue;
-    if (faction(s, p.a) === 'brood' && p.amount > 0 && !s.fedThisRound.includes(p.a.fid)) s.fedThisRound.push(p.a.fid);
-    if (p.lethal || p.t.broken) {
-      const k = applyDamage(s, p.t, p.amount);
-      if (k && p.ad.keywords.includes('devour') && alive(s, p.a)) {
-        const top = lead(p.a); top.dmg = Math.max(0, top.dmg - 3);
-        for (const e of adjEnemies(s, p.a)) applyShock(s, e, 2);
-      }
-    } else applyShock(s, p.t, p.amount, { dirge: p.dirge });
-    if (p.ad.keywords.includes('barrage')) for (const o of adjFormations(s, p.t.pos)) if (o !== p.a) panic(s, o, 1);
-    if (p.ad.keywords.includes('meltCover')) { const tt = tileAt(s, p.t.pos); tt.melted = true; tt.fortified = false; }
+    const wasStanding = p.t.morale > 0;
+    if (p.lethal) damage(s, p.t, p.amount);
+    else shock(s, p.t, p.amount, { ignoreAuras: p.ignoreAuras });
+    if (p.amount > 0) fed.add(p.a);
+    const kw = (k: Keyword) => !p.a.buffs.silenced && p.ad.keywords.includes(k);
+    if (kw('splash')) for (const o of adjUnits(s, p.t.pos)) if (o.owner !== p.a.owner) shock(s, o, 1, { ignoreAuras: true });
+    if (kw('drain')) heal(s, p.a, 2);
+    if (kw('infect') && wasStanding && p.t.morale <= 0 && !isFearless(s, p.t) && !has(p.t, 'decoy')) infected.push({ pos: { ...p.t.pos }, owner: p.a.owner });
   }
-  for (const a of cloakedAttackers) uncloak(s, a);
+  for (const a of revealed) uncloak(s, a);
+  // Brood evolve: grows each time it draws blood
+  for (const a of fed) if (alive(s, a) && faction(s, a) === 'brood' && a.cards.length) {
+    const top = lead(a);
+    if ((top.grow ?? 0) < RULES.evolveMax) { top.grow = (top.grow ?? 0) + 1; s.events.push({ t: 'evolve', fid: a.fid, pos: a.pos }); }
+  }
 }
+let infected: { pos: Pos; owner: PlayerId }[] = [];
 
-// ───────────────────────── advance ─────────────────────────
-function goals(s: GameState, f: Formation): Pos[] {
-  const enemies = s.formations.filter((o) => o.owner !== f.owner).map((o) => o.pos);
-  const relays = s.tiles.filter((t) => t.terrain === 'relay' && t.relayOwner !== f.owner && !formationAt(s, t.pos)).map((t) => t.pos);
-  return [...enemies, ...relays];
-}
-
-function canAdvance(s: GameState, f: Formation): boolean {
-  const d = leadDef(f);
-  if (f.broken || f.buffs.hold || f.buffs.confused || d.keywords.includes('immobile') || speedOf(d) === 0) return false;
-  if (d.keywords.includes('digIn')) return false;
-  if (f.deployedRound === s.round) return false;
-  if (isShaken(f)) return false;
-  if (tileAt(s, f.pos).terrain === 'relay') return false; // hold objectives
-  if (targetsInReach(s, f).length) return false;
-  return true;
-}
-
-function stepToward(s: GameState, f: Formation, gs: Pos[]): Pos | undefined {
-  if (!gs.length) return undefined;
-  const d = leadDef(f);
-  const flying = d.keywords.includes('flying') || d.keywords.includes('burrow');
-  const dist = (p: Pos) => Math.min(...gs.map((g) => distance(g, p)));
-  const cur = dist(f.pos);
-  const cands = neighbors(f.pos).filter((n) => !formationAt(s, n) && (flying || Math.abs(elev(s, n) - elev(s, f.pos)) <= 1) && dist(n) < cur);
-  if (!cands.length) return undefined;
-  const ranged = rangeOf(d) >= 2;
-  cands.sort((a, b) => dist(a) - dist(b) || (ranged ? elev(s, b) - elev(s, a) : 0) || a.col - b.col);
-  return cands[0];
-}
-
-function advanceAll(s: GameState) {
-  const order = [...s.formations].sort((a, b) => (a.owner === s.initiative ? 0 : 1) - (b.owner === s.initiative ? 0 : 1) || a.fid - b.fid);
-  for (const f of order) {
-    if (!alive(s, f) || !canAdvance(s, f)) continue;
-    const d = leadDef(f);
-    const steps = speedOf(d) + f.buffs.speed;
-    const ignoreZoc = d.keywords.includes('flying') || d.keywords.includes('burrow');
-    for (let i = 0; i < steps; i++) {
-      const to = stepToward(s, f, goals(s, f));
-      if (!to) break;
-      s.events.push({ t: 'move', fid: f.fid, from: { ...f.pos }, to });
-      f.pos = to; f.moved = true;
-      // stepping next to a cloaked enemy spots it
-      for (const o of adjFormations(s, f.pos)) if (o.owner !== f.owner && o.cloaked) uncloak(s, o);
-      if (!alive(s, f)) break;
-      if (tileAt(s, f.pos).terrain === 'crater' && !d.keywords.includes('flying')) break;
-      if (tileAt(s, f.pos).terrain === 'relay') break;
-      if (!ignoreZoc && adjEnemies(s, f).length) break;
-      if (targetsInReach(s, f).length) break;
+// ───────────────────────── fallout ─────────────────────────
+/** Remove every broken (Nerve 0) or destroyed (no cards left) unit. Each costs its owner
+ *  1 Resolve per card, and every adjacent ally panics (1 Shock). Repeats for cascades. */
+function fallout(s: GameState) {
+  for (let guard = 0; guard < 20; guard++) {
+    const gone = s.formations.filter((f) => !isHQ(f) && (f.cards.length === 0 || (f.morale <= 0 && !isFearless(s, f))));
+    if (!gone.length) return;
+    for (const f of gone) {
+      s.formations = s.formations.filter((o) => o !== f);
+      const pl = s.players[f.owner];
+      const decoy = f.cards.length > 0 && leadDef(f).keywords.includes('decoy');
+      const burst = f.cards.length > 0 && leadDef(f).keywords.includes('burst') && !f.buffs.silenced;
+      if (f.cards.length) {
+        const real = f.cards.filter((c) => !c.token);
+        s.stats.breaks[f.owner]++;
+        s.events.push({ t: 'break', fid: f.fid, pos: f.pos });
+        if (!decoy) loseResolve(s, f.owner, real.length, `${leadDef(f).name} broke`, 'morale');
+        for (const c of real) pl.discard.push(c.id);
+      } else {
+        s.events.push({ t: 'destroy', fid: f.fid, pos: f.pos });
+      }
+      s.log.push(`#${f.fid} (P${f.owner}) ${f.cards.length ? 'breaks' : 'is wiped out'}`);
+      if (decoy) continue;
+      for (const o of adjUnits(s, f.pos)) if (o.owner === f.owner) shock(s, o, 1, { ignoreAuras: true });
+      if (burst) for (const n of emptyAround(s, f.pos).concat([f.pos]).filter((n) => !formationAt(s, n)).slice(0, 2)) spawnToken(s, f.owner, n, 'b_skitter');
     }
+    checkWin(s);
+    if (s.winner !== null) return;
   }
 }
 
 // ───────────────────────── orders ─────────────────────────
 export function stackLimit(cards: CardInst[]): number {
-  if (cards.every((c) => def(c).keywords.includes('swarm5'))) return RULES.swarmStackMax;
+  if (cards.every((c) => def(c).keywords.includes('swarm'))) return RULES.swarmStackMax;
   if (cards.some((c) => ['Structure', 'Illusion', 'HQ'].includes(def(c).cls))) return 1;
   return RULES.stackMax;
 }
 
 export function canReinforce(f: Formation, card: CardDef): boolean {
-  const ld = leadDef(f);
-  if (['Structure', 'Illusion', 'HQ'].includes(ld.cls) || ['Structure', 'Illusion', 'Tactic'].includes(card.cls)) return false;
-  const ok = card.cls === 'Officer' || f.cards.every((c) => def(c).cls === card.cls || def(c).cls === 'Officer');
-  if (!ok) return false;
+  if (['Structure', 'Illusion', 'HQ'].includes(leadDef(f).cls) || ['Structure', 'Illusion', 'Tactic'].includes(card.cls)) return false;
   return f.cards.length < stackLimit([...f.cards, { uid: 0, id: card.id, dmg: 0 }]);
 }
 
 export function tacticTargetOk(s: GameState, p: PlayerId, card: CardDef, pos: Pos): boolean {
   const occ = formationAt(s, pos);
-  const k = card.tactic!.kind;
-  if (!occ) return false;
-  if (k === 'falseOrders') return occ.owner !== p && !occ.cloaked && !has(occ, 'hq');
-  if (occ.owner !== p) return false;
-  if (k === 'scream') return has(occ, 'synapse') || has(occ, 'synapseBig');
-  if (k === 'broadcast' || k === 'knives' || k === 'spawning') return true;
-  return !has(occ, 'hq');
+  if (!occ || isHQ(occ)) return false;
+  if (card.tactic!.target === 'enemy') return occ.owner !== p && !occ.cloaked;
+  return occ.owner === p;
 }
 
-/** Hive-style placement: a new formation must touch one of your formations
- *  and must not touch an enemy (Infiltrate and spawn structures relax that). */
+/** Hive-style placement: a new unit must touch one of your units or your HQ.
+ *  It MAY touch enemies: placing next to them is how you attack. */
 export function canDeployAt(s: GameState, p: PlayerId, card: CardDef, pos: Pos): boolean {
   if (!inBounds(pos)) return false;
   if (isTactic(card)) return tacticTargetOk(s, p, card, pos);
   const occ = formationAt(s, pos);
   if (occ) return occ.owner === p && canReinforce(occ, card);
-  if (s.inbound.some((i) => samePos(i.pos, pos))) return false;
-  const adj = adjFormations(s, pos);
-  const mine = adj.filter((o) => o.owner === p && !o.broken);
-  const touchesEnemy = adj.some((o) => o.owner !== p);
-  const infiltrate = card.keywords.includes('infiltrate');
-  if (infiltrate && (isCreep(s, pos, p) || neighbors(pos).some((n) => isCreep(s, n, p)))) return true;
-  if (!mine.length) return false;
-  if (!touchesEnemy || infiltrate) return true;
-  return mine.some((o) => has(o, 'spawn'));
+  if (tileAt(s, pos).terrain === 'crater') return false;
+  if (adjFormations(s, pos).some((o) => o.owner === p)) return true;
+  if (card.keywords.includes('infiltrate')) return s.formations.some((o) => o.owner === p && distance(o.pos, pos) <= 2);
+  return false;
 }
 
 export function validateOrders(s: GameState, p: PlayerId, o: Orders): string | null {
   const pl = s.players[p];
-  let cost = 0;
+  let total = 0;
   const used = new Set<number>();
   const hexes = new Set<string>();
   for (const d of o.deploys) {
@@ -608,13 +462,13 @@ export function validateOrders(s: GameState, p: PlayerId, o: Orders): string | n
     used.add(d.uid);
     const cd = def(c);
     if (!isTactic(cd)) {
-      if (hexes.has(key(d.pos))) return 'one unit per hex per round';
+      if (hexes.has(key(d.pos))) return 'one card per hex per round';
       hexes.add(key(d.pos));
     }
-    cost += cd.cost;
+    total += cd.cost;
     if (!canDeployAt(s, p, cd, d.pos)) return `can't place ${cd.name} there`;
   }
-  if (cost > pl.cp) return 'not enough Command';
+  if (total > pl.cp) return 'not enough Command';
   if (o.escalate && pl.escalateUsed) return 'already escalated';
   return null;
 }
@@ -635,26 +489,39 @@ export function apply(s: GameState, a: Action): string | null {
   return null;
 }
 
-function placeCard(s: GameState, p: PlayerId, c: CardInst, pos: Pos, landing: boolean) {
+function placeUnit(s: GameState, p: PlayerId, c: CardInst, pos: Pos): Formation | null {
   const cd = def(c);
   const tgt = formationAt(s, pos);
-  if (tgt && tgt.owner === p && canReinforce(tgt, cd)) {
+  if (tgt) {
+    if (tgt.owner !== p || !canReinforce(tgt, cd)) return null; // the enemy got there first
     tgt.cards.push(c);
-    if (tgt.broken) { tgt.broken = false; tgt.morale = Math.max(1, Math.floor(maxNerve(tgt) / 2)); s.events.push({ t: 'rally', fid: tgt.fid, pos: tgt.pos }); }
-    else tgt.morale = Math.min(maxNerve(tgt), tgt.morale + cd.nerve);
+    tgt.morale += cd.nerve;
     s.events.push({ t: 'deploy', fid: tgt.fid, pos, id: c.id, reinforce: true, owner: p });
-    return;
+    return tgt;
   }
-  let at = pos;
-  if (tgt || (!landing && !canDeployAt(s, p, cd, pos))) {
-    const alt = allHexes().filter((h) => !formationAt(s, h) && canDeployAt(s, p, cd, h)).sort((x, y) => distance(x, pos) - distance(y, pos))[0];
-    if (!alt) { s.players[p].hand.push(c); s.players[p].cp += cd.cost; return; }
-    at = alt;
-  }
-  const f = mkFormation(s, p, at, c, landing ? 0 : s.round);
+  const f = mkFormation(s, p, pos, c, s.round);
   s.formations.push(f);
-  if (cd.keywords.includes('digIn')) { tileAt(s, at).fortified = true; tileAt(s, at).melted = false; }
-  s.events.push({ t: 'deploy', fid: f.fid, pos: at, id: c.id, reinforce: false, owner: p });
+  s.events.push({ t: 'deploy', fid: f.fid, pos, id: c.id, reinforce: false, owner: p });
+  return f;
+}
+
+/** On Reveal effects of a freshly placed card. */
+function onReveal(s: GameState, f: Formation, cd: CardDef) {
+  const k = (x: Keyword) => cd.keywords.includes(x);
+  if (k('fortify')) tileAt(s, f.pos).fortified = true;
+  if (k('nightmare')) for (const o of [...s.formations]) if (o.owner !== f.owner && !isHQ(o) && distance(o.pos, f.pos) <= 2) shock(s, o, 1, { ignoreAuras: true });
+  if (k('mirage')) for (const n of emptyAround(s, f.pos).slice(0, 2)) spawnToken(s, f.owner, n, 'v_phantom');
+  if (k('echo')) { const n = emptyAround(s, f.pos)[0]; if (n) spawnToken(s, f.owner, n, 'v_phantom'); }
+  if (k('shove')) {
+    const e = adjEnemies(s, f).sort((a, b) => a.morale - b.morale)[0];
+    if (e) {
+      // straight away from the rammer: the neighbour of e that is 2 from f and most aligned
+      const away = neighbors(e.pos).filter((n) => distance(n, f.pos) === 2)
+        .sort((a, b) => Math.abs((a.row - e.pos.row) - (e.pos.row - f.pos.row)) - Math.abs((b.row - e.pos.row) - (e.pos.row - f.pos.row)))[0];
+      if (away && !formationAt(s, away) && tileAt(s, away).terrain !== 'crater') { s.events.push({ t: 'move', fid: e.fid, from: e.pos, to: away }); e.pos = away; }
+      else shock(s, e, 2);
+    }
+  }
 }
 
 function applyTactic(s: GameState, p: PlayerId, c: CardInst, pos: Pos) {
@@ -662,224 +529,104 @@ function applyTactic(s: GameState, p: PlayerId, c: CardInst, pos: Pos) {
   const tgt = formationAt(s, pos);
   s.events.push({ t: 'tactic', id: c.id, pos, owner: p });
   s.players[p].discard.push(c.id);
+  if (!tgt) return;
+  const n = cd.tactic!.n;
   switch (cd.tactic!.kind) {
-    case 'overTheTop': if (tgt) { tgt.buffs.speed += 1; tgt.buffs.charge = true; tgt.deployedRound = 0; } break;
-    case 'holdFast': if (tgt) { tgt.buffs.hold = true; tgt.morale += 3; } break;
-    case 'broadcast':
-      for (const o of s.formations) if (o.owner === p && distance(o.pos, pos) <= 2 && !isFearlessBase(o)) {
-        if (o.broken) { o.broken = false; o.morale = 2; s.events.push({ t: 'rally', fid: o.fid, pos: o.pos }); }
-        else o.morale = Math.min(maxNerve(o), o.morale + 2);
-      }
-      break;
-    case 'spawning': if (tgt) for (let i = 0; i < 2; i++) { const spot = neighbors(tgt.pos).find((n) => !formationAt(s, n)); if (spot) spawnToken(s, p, spot, 'b_skitter'); } break;
-    case 'pheromone': if (tgt) for (const o of [tgt, ...adjFriends(s, tgt)]) if (faction(s, o) === 'brood') o.buffs.power += 2; break;
-    case 'scream': if (tgt) for (const e of adjEnemies(s, tgt)) applyShock(s, e, 2); break;
-    case 'falseOrders': if (tgt && tgt.owner !== p) { tgt.buffs.confused = true; applyShock(s, tgt, 1); } break;
-    case 'smoke': if (tgt) { tgt.cloaked = true; const spot = neighbors(tgt.pos).find((n) => !formationAt(s, n)); if (spot) spawnToken(s, p, spot, 'v_phantom'); } break;
-    case 'knives': for (const o of s.formations) if (o.owner === p && o.cloaked) o.buffs.power += 2; break;
+    case 'power': tgt.buffs.power += n; break;
+    case 'powerArea': for (const o of [tgt, ...adjAllies(s, tgt)]) o.buffs.power += n; break;
+    case 'nerve': for (const o of [tgt, ...adjAllies(s, tgt)]) o.morale = Math.min(maxNerve(o), o.morale + n); break;
+    case 'scream': for (const e of adjEnemies(s, tgt)) shock(s, e, n); break;
+    case 'silence': tgt.buffs.silenced = true; tgt.buffs.power -= n; break;
+    case 'cloak': { tgt.cloaked = true; const e = emptyAround(s, tgt.pos)[0]; if (e) spawnToken(s, p, e, 'v_phantom'); break; }
+    case 'knives': for (const o of s.formations) if (o.owner === p && o.cloaked) o.buffs.power += n; break;
+    case 'shell': for (const o of [tgt, ...adjUnits(s, tgt.pos)]) if (o.owner !== p) shock(s, o, n); break;
   }
 }
 
 function resolveRound(s: GameState) {
   s.events = [];
-  s.fedThisRound = [];
-  for (const f of s.formations) { f.buffs = noBuffs(); f.moved = false; }
+  infected = [];
+  for (const f of s.formations) f.buffs = noBuffs();
 
   // ── REVEAL ──
   s.events.push({ t: 'step', step: 'reveal' });
-  const landing = s.inbound; s.inbound = [];
-  for (const i of landing) placeCard(s, i.owner, i.card, i.pos, true);   // heavy drops land first
+  const placed: [Formation, CardDef][] = [];
+  const tactics: [PlayerId, CardInst, Pos][] = [];
   for (const p of [s.initiative, other(s.initiative)]) {
     const pl = s.players[p];
     const o = pl.orders!;
     if (o.escalate && !pl.escalateUsed) { pl.escalateUsed = true; s.pendingEscalations++; s.log.push(`P${p} ESCALATES`); }
-    const cardOf = (uid: number) => pl.hand.find((h) => h.uid === uid);
-    // units first, then tactics (so tactics can target freshly placed units)
-    const ordered = o.deploys.filter((d) => cardOf(d.uid))
-      .sort((a, b) => Number(isTactic(def(cardOf(a.uid)!))) - Number(isTactic(def(cardOf(b.uid)!))));
-    for (const d of ordered) {
+    for (const d of o.deploys) {
       const idx = pl.hand.findIndex((h) => h.uid === d.uid);
       if (idx < 0) continue;
       const c = pl.hand[idx];
       const cd = def(c);
       if (cd.cost > pl.cp) continue;
-      pl.hand.splice(idx, 1);
-      pl.cp -= cd.cost;
-      if (isTactic(cd)) { if (tacticTargetOk(s, p, cd, d.pos)) applyTactic(s, p, c, d.pos); else pl.discard.push(c.id); }
-      else if (isHeavy(cd) && !formationAt(s, d.pos)) { s.inbound.push({ owner: p, pos: d.pos, card: c }); s.events.push({ t: 'inbound', pos: d.pos, owner: p }); }
-      else placeCard(s, p, c, d.pos, false);
+      if (isTactic(cd)) { pl.hand.splice(idx, 1); pl.cp -= cd.cost; tactics.push([p, c, d.pos]); continue; }
+      const f = placeUnit(s, p, c, d.pos);
+      if (!f) { s.events.push({ t: 'bounce', pos: d.pos, owner: p }); continue; } // card stays in hand
+      pl.hand.splice(idx, 1); pl.cp -= cd.cost;
+      placed.push([f, cd]);
     }
     pl.orders = null;
   }
-  if (finishIfOver(s)) return;
+  for (const [f] of placed) for (const e of adjEnemies(s, f)) if (e.cloaked) uncloak(s, e); // walking into the unseen reveals it
+  for (const [f, cd] of placed) if (alive(s, f)) onReveal(s, f, cd);
+  for (const [p, c, pos] of tactics) if (tacticTargetOk(s, p, def(c), pos)) applyTactic(s, p, c, pos); else s.players[p].discard.push(c.id);
+  fallout(s);
+  if (s.winner !== null) return;
 
-  s.events.push({ t: 'step', step: 'advance' });
-  advanceAll(s);
-  if (finishIfOver(s)) return;
+  // ── STRIKE ──
+  s.events.push({ t: 'step', step: 'strike' });
+  strikeAll(s);
 
-  s.events.push({ t: 'step', step: 'ranged' });
-  resolveStrikes(s, true);
-  if (finishIfOver(s)) return;
+  // ── FALLOUT ──
+  s.events.push({ t: 'step', step: 'fallout' });
+  fallout(s);
+  if (s.winner !== null) return;
+  for (const i of infected) if (!formationAt(s, i.pos)) spawnToken(s, i.owner, i.pos, 'b_skitter');
 
-  s.events.push({ t: 'step', step: 'melee' });
-  resolveStrikes(s, false);
-  if (finishIfOver(s)) return;
-
-  s.events.push({ t: 'step', step: 'rout' });
-  for (const f of [...s.formations]) {
-    if (!f.broken || !alive(s, f)) continue;
-    const fac = faction(s, f);
-    if (fac === 'concord') flee(s, f);
-    else if (fac === 'brood') feral(s, f);
-    else vanish(s, f);
-  }
-  if (finishIfOver(s)) return;
-
+  // ── UPKEEP ──
   s.events.push({ t: 'step', step: 'upkeep' });
   upkeep(s);
-  if (finishIfOver(s)) return;
+  checkWin(s);
+  if (s.winner !== null) return;
   nextRound(s);
 }
 
-function finishIfOver(s: GameState): boolean {
-  checkWin(s);
-  return s.winner !== null;
-}
-
-function flee(s: GameState, f: Formation) {
-  if (inHome(f.owner, f.pos)) return;
-  const d = leadDef(f);
-  const immobile = d.keywords.includes('immobile') || speedOf(d) === 0;
-  const steps = Math.max(1, speedOf(d));
-  const edge = homeEdge(f.owner);
-  for (let i = 0; i < steps; i++) {
-    if (inHome(f.owner, f.pos)) break;
-    const cands = immobile ? [] : neighbors(f.pos).filter((n) =>
-      Math.abs(n.row - edge) < Math.abs(f.pos.row - edge) && !formationAt(s, n) &&
-      Math.abs(elev(s, n) - elev(s, f.pos)) <= 1 &&
-      !neighbors(n).some((m) => { const o = formationAt(s, m); return o && o.owner !== f.owner && !o.broken; }));
-    if (!cands.length) { if (i === 0) surrender(s, f); return; }
-    const to = cands.sort((a, b) => a.col - b.col)[0];
-    s.events.push({ t: 'move', fid: f.fid, from: { ...f.pos }, to });
-    f.pos = to;
-  }
-}
-
-function surrender(s: GameState, f: Formation) {
-  s.log.push(`#${f.fid} (P${f.owner}) is ENCIRCLED and surrenders`);
-  s.stats.surrenders[f.owner]++;
-  const n = f.cards.filter((c) => !c.token).length;
-  for (const c of f.cards) if (!c.token) s.players[f.owner].discard.push(c.id);
-  s.stats.cardsLost[f.owner] += f.cards.length;
-  removeFormation(s, f);
-  s.events.push({ t: 'surrender', fid: f.fid, pos: f.pos });
-  loseResolve(s, f.owner, Math.max(1, n) * RULES.cardDeathCost, 'surrender');
-}
-
-function feral(s: GameState, f: Formation) {
-  const adj = adjFormations(s, f.pos).filter((o) => !has(o, 'hq') || o.owner !== f.owner);
-  if (adj.length && rangeOf(leadDef(f)) > 0) {
-    const t = adj.sort((a, b) => (a.owner === f.owner ? 1 : 0) - (b.owner === f.owner ? 1 : 0) || a.morale - b.morale)[0];
-    const v = power(f) + RULES.feralPower;
-    s.events.push({ t: 'strike', fid: f.fid, target: t.fid, from: { ...f.pos }, to: { ...t.pos }, amount: v, lethal: t.owner === f.owner });
-    if (t.owner === f.owner) applyDamage(s, t, Math.max(1, Math.ceil(v / 2)));
-    else applyShock(s, t, v);
-    return;
-  }
-  if (leadDef(f).keywords.includes('immobile')) return;
-  const others = s.formations.filter((o) => o !== f);
-  const to = stepToward(s, f, others.map((o) => o.pos));
-  if (to) { s.events.push({ t: 'move', fid: f.fid, from: { ...f.pos }, to }); f.pos = to; }
-}
-
-/** Hush don't rout: they melt away. The Lead slips back to hand (unless caught). */
-function vanish(s: GameState, f: Formation) {
-  if (adjEnemies(s, f).length) { s.log.push(`#${f.fid} is caught before it can vanish`); return surrender(s, f); }
-  const pl = s.players[f.owner];
-  const top = f.cards.pop()!;
-  top.dmg = 0; top.grow = 0;
-  if (!top.token) { if (pl.hand.length < RULES.handMax) pl.hand.push(top); else pl.discard.push(top.id); }
-  for (const c of f.cards) if (!c.token) pl.discard.push(c.id);
-  s.stats.cardsLost[f.owner] += f.cards.length;
-  removeFormation(s, f);
-  s.events.push({ t: 'destroy', fid: f.fid, pos: f.pos });
-  s.log.push(`#${f.fid} (P${f.owner}) vanishes`);
-}
-
 function upkeep(s: GameState) {
-  // regroup / relink / officer rally
-  for (const f of s.formations) {
-    if (!f.broken) continue;
-    const fac = faction(s, f);
-    const officer = adjFriends(s, f).some((o) => has(o, 'rally'));
-    if ((fac === 'concord' && (officer || (inHome(f.owner, f.pos) && adjEnemies(s, f).length === 0))) ||
-        (fac === 'brood' && isLinked(s, f))) {
-      f.broken = false; f.morale = Math.max(1, Math.floor(maxNerve(f) / 2));
-      s.events.push({ t: 'rally', fid: f.fid, pos: f.pos });
-    }
-  }
-  // recover
-  for (const f of s.formations) {
-    if (f.broken || isFearlessBase(f)) continue;
-    const dreaded = s.formations.some((o) => o.owner !== f.owner && !o.broken && has(o, 'dread') && distance(o.pos, f.pos) <= 2);
-    if (dreaded) continue;
-    let gain = adjEnemies(s, f).length === 0 ? 1 : 0;
-    if (s.formations.some((o) => o.owner === f.owner && !o.broken && distance(o.pos, f.pos) <= 2 && has(o, 'marshal'))) gain += 1;
-    f.morale = Math.min(maxNerve(f), f.morale + gain);
-  }
-  // evolve
-  for (const f of s.formations) {
-    if (f.broken) continue;
+  for (const f of [...s.formations]) {
+    if (isHQ(f) || !alive(s, f) || !f.cards.length) continue;
     const top = lead(f);
-    const fed = s.fedThisRound.includes(f.fid);
-    const grub = has(f, 'grub');
-    if ((fed || grub) && (top.grow ?? 0) < (grub ? 4 : 3)) { top.grow = (top.grow ?? 0) + 1; s.events.push({ t: 'evolve', fid: f.fid, pos: f.pos }); }
+    if (has(f, 'grow') && (top.grow ?? 0) < 4) { top.grow = (top.grow ?? 0) + 1; s.events.push({ t: 'evolve', fid: f.fid, pos: f.pos }); }
+    if (has(f, 'hatch')) {
+      const kids = s.formations.filter((o) => o.owner === f.owner && o.cards.length && isToken(o) && lead(o).id === 'b_skitter').length;
+      const n = emptyAround(s, f.pos)[0];
+      if (kids < 3 && n) spawnToken(s, f.owner, n, 'b_skitter');
+    }
+    if (has(f, 'shroud')) for (const o of adjAllies(s, f)) o.cloaked = true;
+    if (has(f, 'fade') && !f.cloaked && adjEnemies(s, f).length === 0) f.cloaked = true;
+    if (has(f, 'dread')) for (const o of adjEnemies(s, f)) shock(s, o, 1, { ignoreAuras: true });
   }
-  // brood hatcheries
-  for (const f of [...s.formations]) {
-    if (f.broken || !has(f, 'hatch')) continue;
-    const kids = s.formations.filter((o) => o.owner === f.owner && leadDef(o).id === 'b_skitter' && lead(o).token).length;
-    const spot = neighbors(f.pos).find((n) => !formationAt(s, n) && !adjFormations(s, n).some((o) => o.owner !== f.owner));
-    if (kids < 2 && spot) spawnToken(s, f.owner, spot, 'b_skitter');
-  }
-  // stealth: spotted cloaks drop, then Fade / Shroud re-cloak, Mirage spawns
-  for (const f of [...s.formations]) if (f.cloaked && adjEnemies(s, f).length) uncloak(s, f);
-  for (const f of s.formations) {
-    if (f.broken || f.cloaked || faction(s, f) !== 'hush' || has(f, 'hq')) continue;
-    if (adjFriends(s, f).some((o) => has(o, 'shroud')) || (has(f, 'fade') && adjEnemies(s, f).length === 0)) f.cloaked = true;
-  }
-  for (const f of [...s.formations]) {
-    if (f.broken || !has(f, 'mirage')) continue;
-    if (s.formations.filter((o) => o.owner === f.owner && has(o, 'decoy')).length >= 2) continue;
-    const spot = neighbors(f.pos).find((n) => !formationAt(s, n));
-    if (spot) spawnToken(s, f.owner, spot, 'v_phantom');
-  }
-  // creep unsettles enemies standing in it
-  for (const f of [...s.formations]) {
-    if (f.broken || s.players[other(f.owner)].faction !== 'brood') continue;
-    if (isCreep(s, f.pos, other(f.owner))) panic(s, f, 1);
-  }
-  // relays & siege
+  fallout(s);
+  if (s.winner !== null) return;
   for (const t of s.tiles) {
     if (t.terrain !== 'relay') continue;
     const o = formationAt(s, t.pos);
-    if (o && !o.broken && !has(o, 'decoy')) t.relayOwner = o.owner;
+    if (o && !has(o, 'decoy')) t.relayOwner = o.owner;
   }
-  for (const p of [0, 1] as PlayerId[]) {
-    const n = s.tiles.filter((t) => t.terrain === 'relay' && t.relayOwner === p).length;
-    if (n) loseResolve(s, other(p), n * RULES.relayDrain, 'relays held by enemy');
-    const hq = s.formations.find((f) => f.owner === other(p) && has(f, 'hq'));
-    const bt = hq ? adjFormations(s, hq.pos).filter((f) => f.owner === p && !f.broken && !has(f, 'decoy')).length : 0;
-    if (bt) loseResolve(s, other(p), bt * RULES.siegeDrain, 'HQ besieged');
-  }
+  // Relay majority: whoever holds more Relays drains the other.
+  const held = (p: PlayerId) => s.tiles.filter((t) => t.terrain === 'relay' && t.relayOwner === p).length;
+  const h0 = held(0), h1 = held(1);
+  if (h0 !== h1) loseResolve(s, h0 > h1 ? 1 : 0, RULES.relayDrain, 'enemy holds more Relays', 'relays');
 }
 
 function nextRound(s: GameState) {
   if (s.round >= RULES.maxRounds) {
     const r0 = s.players[0].resolve, r1 = s.players[1].resolve;
     if (r0 !== r1) return end(s, r0 > r1 ? 0 : 1, 'time: higher Resolve');
-    const rl = (p: PlayerId) => s.tiles.filter((t) => t.relayOwner === p).length;
-    if (rl(0) !== rl(1)) return end(s, rl(0) > rl(1) ? 0 : 1, 'time: relays');
+    const held = (p: PlayerId) => s.tiles.filter((t) => t.terrain === 'relay' && t.relayOwner === p).length;
+    if (held(0) !== held(1)) return end(s, held(0) > held(1) ? 0 : 1, 'time: more Relays');
     return end(s, -1, 'time: dead even');
   }
   const r0 = s.players[0].resolve, r1 = s.players[1].resolve;
@@ -889,17 +636,15 @@ function nextRound(s: GameState) {
   while (s.pendingEscalations > 0) { s.stakes = Math.min(RULES.maxStakes, s.stakes * 2); s.pendingEscalations--; }
   if (s.round === RULES.maxRounds) s.stakes = Math.min(RULES.maxStakes, s.stakes * 2);
   for (const p of [0, 1] as PlayerId[]) {
-    const pl = s.players[p];
-    const relays = s.tiles.filter((t) => t.terrain === 'relay' && t.relayOwner === p).length;
-    pl.cp = Math.min(RULES.carryOver, pl.cp) + cpForRound(s.round) + relays;
+    s.players[p].cp = cpForRound(s.round);
     for (let i = 0; i < RULES.drawPerRound; i++) draw(s, p);
   }
   s.phase = 'orders';
 }
 
-// ───────────────────────── preview (intent arrows) ─────────────────────────
-/** Simulate the board's next resolution with the given orders for `p` (opponent
- *  assumed to play nothing). Used for intent arrows and by the AI. */
+// ───────────────────────── preview ─────────────────────────
+/** Simulate the next resolution with the given orders for `p` (opponent assumed to play
+ *  nothing). Used for intent arrows and by the AI. */
 export function simulate(s: GameState, p: PlayerId, orders: Orders): GameState {
   const c = structuredClone({ ...s, log: [], events: [] }) as GameState;
   c.players[p].orders = orders;
@@ -918,8 +663,6 @@ export function viewFor(s: GameState, viewer: PlayerId): GameState {
   for (const p of v.players) p.deck = p.deck.map(() => ({ uid: -1, id: '?', dmg: 0 }));
   for (const f of v.formations)
     if (f.owner !== viewer && f.cloaked) { f.cards = [{ uid: -1, id: '?', dmg: 0 }]; f.morale = -1; }
-  for (const i of v.inbound) if (i.owner !== viewer) i.card = { uid: -1, id: '?', dmg: 0 };
-  // events: hide what cloaked enemy units are
   for (const e of v.events) if (e.t === 'deploy' && e.owner !== viewer && v.players[e.owner].faction === 'hush') e.id = '?';
   v.log = [];
   v.rng = 0;

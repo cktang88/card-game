@@ -33,7 +33,7 @@ for (const e of entries) wins[e.label] = { w: 0, g: 0 };
 const reasons: Record<string, number> = {};
 const rounds: number[] = [];
 const resolveBy: Record<string, number> = {};
-let breaks = 0, cardsLost = 0, surrenders = 0;
+let breaks = 0, cardsLost = 0;
 const t0 = Date.now();
 
 for (let i = 0; i < entries.length; i++) {
@@ -52,8 +52,7 @@ for (let i = 0; i < entries.length; i++) {
       reasons[s.endReason] = (reasons[s.endReason] ?? 0) + 1;
       for (const [k, v] of Object.entries(s.stats.resolveBy)) resolveBy[k] = (resolveBy[k] ?? 0) + v;
       breaks += s.stats.breaks[0] + s.stats.breaks[1];
-      cardsLost += s.stats.cardsLost[0] + s.stats.cardsLost[1];
-      surrenders += s.stats.surrenders[0] + s.stats.surrenders[1];
+      cardsLost += s.stats.destroyed[0] + s.stats.destroyed[1];
       if (verbose && g === 0) console.log(s.log.join('\n'));
     }
     console.log(`${A.label.padEnd(18)} vs ${B.label.padEnd(18)} ${aw}-${N - aw}`);
@@ -67,6 +66,6 @@ const hist: Record<number, number> = {};
 for (const r of rounds) hist[r] = (hist[r] ?? 0) + 1;
 console.log('Game length (round ended):', JSON.stringify(hist));
 console.log('End reasons:', JSON.stringify(reasons));
-console.log(`Per game: breaks ${(breaks / G).toFixed(1)}, cards destroyed ${(cardsLost / G).toFixed(1)}, surrenders ${(surrenders / G).toFixed(2)}`);
+console.log(`Per game: units broken ${(breaks / G).toFixed(1)}, cards destroyed ${(cardsLost / G).toFixed(1)}`);
 const totR = Object.values(resolveBy).reduce((a, b) => a + b, 0);
 console.log('Resolve lost by source:', Object.entries(resolveBy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${((100 * v) / totR).toFixed(0)}%`).join(', '));

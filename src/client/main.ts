@@ -214,7 +214,6 @@ function onBoardHover(ev: MouseEvent) {
 function formationInfo(f: Formation): string {
   if (f.cards[0]?.id === '?') return 'A cloaked enemy. Step next to it to reveal it.';
   const parts = [`Stack: ${f.cards.map((c) => CARD_BY_ID[c.id].name).join(' + ')}`];
-  if (f.broken) parts.push('<b style="color:#ff6a4a">BROKEN</b>');
   if (f.cloaked) parts.push('Cloaked');
   const g = lead(f).grow ?? 0;
   if (g) parts.push(`Evolved +${g}`);
@@ -242,7 +241,7 @@ $('btn-retreat').onclick = () => {
 };
 
 // ───────────────────────── playback ─────────────────────────
-const STEP_NAMES: Record<string, string> = { reveal: 'REVEAL', advance: 'ADVANCE', ranged: 'VOLLEY', melee: 'CLASH', rout: 'ROUT', upkeep: 'UPKEEP' };
+const STEP_NAMES: Record<string, string> = { reveal: 'REVEAL', strike: 'STRIKE', fallout: 'FALLOUT', upkeep: 'UPKEEP' };
 
 async function playback(prev: GameState, next: GameState, ev: GameEvent[]) {
   board.clearOverlays();
@@ -257,7 +256,7 @@ async function playback(prev: GameState, next: GameState, ev: GameEvent[]) {
   while (i < ev.length) {
     const e = ev[i];
     if (e.t === 'step') {
-      if (e.step === 'upkeep' || e.step === 'rout') { i++; continue; }
+      if (e.step === 'upkeep' || e.step === 'fallout') { i++; continue; }
       banner(STEP_NAMES[e.step]);
       await wait(550);
       i++; continue;
@@ -265,7 +264,7 @@ async function playback(prev: GameState, next: GameState, ev: GameEvent[]) {
     if (e.t === 'strike') {
       // play a whole batch of strikes simultaneously
       const batch: typeof ev = [];
-      while (i < ev.length && ['strike', 'shock', 'damage', 'break', 'destroy', 'reveal', 'resolve', 'surrender'].includes(ev[i].t)) batch.push(ev[i++]);
+      while (i < ev.length && ['strike', 'shock', 'damage', 'heal', 'reveal', 'evolve'].includes(ev[i].t)) batch.push(ev[i++]);
       await Promise.all(batch.filter((b) => b.t === 'strike').map((b) => board.animateStrike(b as Extract<GameEvent, { t: 'strike' }>)));
       for (const b of batch) await handleMinor(b, next, nameOf);
       await wait(250);
@@ -281,21 +280,20 @@ async function handleMinor(e: GameEvent, next: GameState, nameOf: (fid: number) 
   switch (e.t) {
     case 'deploy': {
       const fNext = next.formations.find((f) => f.fid === e.fid);
-      const f: Formation = fNext ?? { fid: e.fid, owner: e.owner, pos: e.pos, cards: [{ uid: -1, id: e.id, dmg: 0 }], morale: CARD_BY_ID[e.id]?.nerve ?? 1, broken: false, deployedRound: 0, cloaked: next.players[e.owner].faction === 'hush', moved: false, buffs: { power: 0, hold: false, charge: false, speed: 0, confused: false } };
+      const f: Formation = fNext ?? { fid: e.fid, owner: e.owner, pos: e.pos, cards: [{ uid: -1, id: e.id, dmg: 0 }], morale: CARD_BY_ID[e.id]?.nerve ?? 1, deployedRound: 0, cloaked: next.players[e.owner].faction === 'hush', buffs: { power: 0, silenced: false } };
       if (e.reinforce) { board.burst(e.pos, '#ffe0a0', 16); board.float(e.pos, '+REINFORCE', '#ffd27a'); }
       else await board.animateDeploy({ ...f, pos: e.pos }, next, me);
       break;
     }
-    case 'inbound': board.float(e.pos, 'INBOUND', e.owner === me ? '#ffd27a' : '#ff7a5a'); break;
+    case 'bounce': board.float(e.pos, e.owner === me ? 'HEX TAKEN' : 'BLOCKED', '#ffd27a'); break;
+    case 'heal': board.float(e.pos, `+${e.amount} ♥`, '#7aff8a'); break;
     case 'tactic': board.float(e.pos, CARD_BY_ID[e.id].name, '#ffe9b0'); board.burst(e.pos, '#fff0c0', 18); log(`${e.owner === me ? 'You' : 'Enemy'} played ${CARD_BY_ID[e.id].name}`); await sleep(350); break;
     case 'move': await board.animateMove(e.fid, e.to); break;
     case 'strike': log(`${nameOf(e.fid)} → ${nameOf(e.target)}: ${e.amount}${e.lethal ? ' dmg' : ' shock'}`); break;
     case 'shock': board.float(e.pos, `-${e.amount} ☠`, '#6fb8ff'); break;
     case 'damage': board.float(e.pos, `-${e.amount} ♥`, '#ff5a3a'); break;
-    case 'break': board.float(e.pos, 'BROKEN!', '#ff3a2a'); board.burst(e.pos, '#ff3a2a', 30); log(`💥 ${nameOf(e.fid)} breaks`); break;
-    case 'surrender': board.float(e.pos, 'SURRENDERS', '#ff9a3a'); log(`🏳 ${nameOf(e.fid)} is encircled and surrenders`); await board.animateRemove(e.fid); break;
-    case 'destroy': await board.animateRemove(e.fid); break;
-    case 'rally': board.float(e.pos, 'RALLY', '#7aff8a'); break;
+    case 'break': board.float(e.pos, 'BROKEN!', '#ff3a2a'); board.burst(e.pos, '#ff3a2a', 30); log(`💥 ${nameOf(e.fid)} breaks and routs`); await board.animateRemove(e.fid); break;
+    case 'destroy': board.float(e.pos, 'DESTROYED', '#ff7a3a'); log(`☠ ${nameOf(e.fid)} destroyed`); await board.animateRemove(e.fid); break;
     case 'reveal': board.float(e.pos, 'REVEALED', '#b99cff'); board.burst(e.pos, '#9a7aff', 20); break;
     case 'evolve': board.float(e.pos, 'EVOLVE', '#9dff5a'); break;
     case 'resolve': {
