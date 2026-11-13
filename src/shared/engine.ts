@@ -667,13 +667,16 @@ function resolveRound(s: GameState) {
   fallout(s);
   if (s.winner !== null) return;
 
-  // ── BREACH ──
-  s.events.push({ t: 'step', step: 'breach' });
-  const { breaches, flanked } = computeBreaches(s);
-  s.breaches = breaches.map((b) => b.fid);
-  s.flanked = {};
-  for (const b of breaches) s.events.push({ t: 'breach', fid: b.fid, pos: { ...b.pos }, owner: b.owner });
-  for (const [f, n] of flanked) { s.flanked[f.fid] = n; s.events.push({ t: 'flank', fid: f.fid, pos: { ...f.pos }, amount: n }); }
+  // ── BREACH ── (only when a breach does something: v0.7 cut flanking and drain)
+  const breachMatters = RULES.flank > 0 || RULES.flood > 0 || RULES.breachDrain > 0;
+  s.breaches = []; s.flanked = {};
+  if (breachMatters) {
+    s.events.push({ t: 'step', step: 'breach' });
+    const { breaches, flanked } = computeBreaches(s);
+    s.breaches = breaches.map((b) => b.fid);
+    for (const b of breaches) s.events.push({ t: 'breach', fid: b.fid, pos: { ...b.pos }, owner: b.owner });
+    for (const [f, n] of flanked) { s.flanked[f.fid] = n; s.events.push({ t: 'flank', fid: f.fid, pos: { ...f.pos }, amount: n }); }
+  }
   s.edge = RULES.formations ? computeEdge(s) : [];
   s.edge.forEach((w, col) => { if (w !== -1) s.events.push({ t: 'edge', col, owner: w as PlayerId }); });
 

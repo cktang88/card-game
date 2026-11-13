@@ -131,10 +131,13 @@ function refresh() {
   renderHand(P.cp - spent);
   drawOverlays();
   const oppLocked = !!s.players[other(me)].orders;
-  $('hint').textContent = locked ? 'Orders locked. Waiting for the enemy…'
+  const hintEl = $('hint');
+  const prevHint = hintEl.textContent;
+  hintEl.textContent = locked ? 'Orders locked. Waiting for the enemy…'
     : oppLocked ? 'The enemy has locked in their orders.'
     : selected !== null ? 'Click a highlighted hex to place it (or click the card again to cancel).'
     : 'Place cards on your Front or Back row. Arrows show what will happen. Then Lock In.';
+  if (hintEl.textContent !== prevHint) { hintEl.classList.remove('fade'); void hintEl.offsetWidth; hintEl.classList.add('fade'); }
 }
 
 function setResolve(id: string, n: number) {
@@ -267,6 +270,7 @@ $('btn-lock').onclick = () => {
   ctl.submit({ deploys: pending, escalate: $<HTMLInputElement>('escalate').checked });
   refresh();
 };
+$('btn-log').onclick = () => $('log').classList.toggle('open');
 $('btn-retreat').onclick = () => {
   if (!state || state.phase === 'over') return;
   if (confirm(`Sound the retreat and concede at stakes ×${state.stakes}?`)) ctl.retreat();

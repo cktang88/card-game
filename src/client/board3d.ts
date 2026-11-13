@@ -6,6 +6,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { CARD_BY_ID, FACTION_INFO, Faction } from '../shared/cards';
 import { ART } from './art-manifest';
 import {
+  RULES,
   COLS, HAND_NAMES, columnHand, Formation, GameEvent, GameState, PlayerId, Pos, allCells, key, isFearless, lead, leadDef, linkSource, maxNerve, power, Terrain,
 } from '../shared/engine';
 
@@ -17,8 +18,23 @@ const BASE_H = 0.22;
 export const ME_COLOR = new THREE.Color('#e0a03c');
 export const OPP_COLOR = new THREE.Color('#c8452f');
 
-const CELL = 1.75;            // column spacing
-const ROW_Z = [-3.05, -1.2, 1.2, 3.05];
+// Cells are big and tight (Gwent/KARDS: the battlefield is the screen, cards dominate it).
+// Layout adapts to the screen: wide cells on landscape (5 columns fill 16:9), tall cells on portrait phones.
+let CELL = 2.7;               // column spacing
+let ROW_D = 2.0;              // row depth
+const GAP = 0.32;             // no-man's-land between the two Front rows
+let ROW_Z: number[] = [];
+let TOKEN = 0, TOKEN_W = 0, ART_REPEAT_Y = 1, LABEL_ASPECT = 4;
+let layoutKind = '';
+function setLayout(kind: 'land' | 'port') {
+  layoutKind = kind;
+  [CELL, ROW_D] = kind === 'land' ? [2.7, 2.0] : [1.75, 3.0];
+  LABEL_ASPECT = kind === 'land' ? 4 : 2.2; // narrow portrait cards get relatively bigger stat badges
+  ROW_Z = [-(ROW_D * 1.5 + GAP / 2), -(ROW_D / 2 + GAP / 2), ROW_D / 2 + GAP / 2, ROW_D * 1.5 + GAP / 2];
+  TOKEN = ROW_D * 0.9; TOKEN_W = CELL * 0.92;
+  ART_REPEAT_Y = Math.min(1, (2 / 3) / ((TOKEN_W * 0.94) / (TOKEN * 0.92))); // cover-crop portrait art
+}
+setLayout('land');
 /** World x/z of a battle-line cell (kept the old name for minimal churn). */
 export function hexXZ(p: Pos): [number, number] {
   return [(p.col - (COLS - 1) / 2) * CELL, ROW_Z[p.row]];
@@ -85,8 +101,10 @@ function tokenTexture(id: string, faction: Faction): THREE.Texture {
   if (ART.has(id)) {
     new THREE.TextureLoader().load(`/art/${id}.webp`, (t) => {
       t.colorSpace = THREE.SRGBColorSpace;
-      // crop portrait to square centre
-      t.repeat.set(1, 2 / 3); t.offset.set(0, 1 / 6);
+      // cover-crop the portrait art onto the wide token, biased slightly upward (faces/heads)
+      const planeAsp = (TOKEN_W * 0.94) / (TOKEN * 0.92), imgAsp = 2 / 3;
+      if (planeAsp >= imgAsp) { t.repeat.set(1, ART_REPEAT_Y); t.offset.set(0, Math.max(0, (1 - ART_REPEAT_Y) / 2 - 0.04)); }
+      else { const rx = planeAsp / imgAsp; t.repeat.set(rx, 1); t.offset.set((1 - rx) / 2, 0); }
       // dispose first: the GPU storage was sized for the placeholder canvas
       tex.dispose();
       (tex as THREE.Texture).image = t.image; tex.repeat.copy(t.repeat); tex.offset.copy(t.offset); tex.needsUpdate = true;
@@ -109,34 +127,37 @@ BADGE.nrv.src = '/ui/badge_nerve.webp';
 export const badgesReady = () => BADGE.pow.complete && BADGE.nrv.complete && BADGE.pow.naturalWidth > 0;
 
 function labelCanvas(f: Formation, s: GameState, viewer: PlayerId): HTMLCanvasElement {
+  // Wide strip laid along the unit card's near edge: Power badge bottom-left, Nerve banner bottom-right,
+  // art left uncovered in the middle (like printed card stats in Gwent/KARDS).
   const c = document.createElement('canvas');
-  c.width = 256; c.height = 112;
+  c.width = 512; c.height = Math.round(512 / LABEL_ASPECT);
+  const S = c.height / 128; // badge scale
   const g = c.getContext('2d')!;
   const unknown = f.cards[0]?.id === '?';
   const pw = unknown ? '?' : String(power(f));
   const fearless = !unknown && isFearless(s, f);
   const nv = unknown ? '?' : fearless ? '∞' : `${Math.max(0, f.morale)}`;
   const num = (txt: string, x: number, y: number, fill: string, stroke: string) => {
-    g.font = '900 40px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.lineJoin = 'round'; g.lineWidth = 7; g.strokeStyle = stroke; g.strokeText(txt, x, y);
+    g.font = `900 ${Math.round(46 * S)}px Cinzel, Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.lineJoin = 'round'; g.lineWidth = 8; g.strokeStyle = stroke; g.strokeText(txt, x, y);
     g.fillStyle = fill; g.fillText(txt, x, y);
   };
   if (badgesReady()) {
-    g.drawImage(BADGE.pow, 34, 0, 86, 92);
-    g.drawImage(BADGE.nrv, 140, 0, 80, 86);
+    g.drawImage(BADGE.pow, 0, 6 * S, 104 * S, 112 * S);
+    g.drawImage(BADGE.nrv, 512 - 98 * S, 8 * S, 98 * S, 106 * S);
   }
-  num(pw, 77, 42, '#fff1d6', '#2a0805');
-  num(nv, 180, 40, '#eaf0ff', '#0a1530');
+  num(pw, 52 * S, 56 * S, '#fff1d6', '#2a0805');
+  num(nv, 512 - 49 * S, 54 * S, '#eaf0ff', '#0a1530');
   if (f.cards.length > 1) {
     for (let i = 0; i < f.cards.length; i++) {
-      const x = 128 - (f.cards.length - 1) * 11 + i * 22;
-      g.save(); g.translate(x, 100); g.rotate(Math.PI / 4);
-      g.fillStyle = '#f3d999'; g.strokeStyle = '#3a280c'; g.lineWidth = 2; g.fillRect(-6, -6, 12, 12); g.strokeRect(-6, -6, 12, 12);
+      const x = 256 - (f.cards.length - 1) * 15 + i * 30;
+      g.save(); g.translate(x, 100 * S); g.rotate(Math.PI / 4);
+      g.fillStyle = '#f3d999'; g.strokeStyle = '#3a280c'; g.lineWidth = 3; g.fillRect(-9, -9, 18, 18); g.strokeRect(-9, -9, 18, 18);
       g.restore();
     }
   } else if (!unknown && !fearless && wavering(f)) {
-    g.font = '700 19px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.lineWidth = 5; g.strokeStyle = '#000';
-    g.strokeText('WAVERING', 128, 100); g.fillStyle = '#ffb03a'; g.fillText('WAVERING', 128, 100);
+    g.font = '700 26px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.lineWidth = 6; g.strokeStyle = '#000';
+    g.strokeText('WAVERING', 256, 100 * S); g.fillStyle = '#ffb03a'; g.fillText('WAVERING', 256, 100 * S);
   }
   void viewer;
   return c;
@@ -212,7 +233,7 @@ export class Board3D {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = true;
     el.appendChild(this.renderer.domElement);
-    this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+    this.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
     this.scene.background = skyTexture();
     new THREE.TextureLoader().load('/board/sky.webp', (t) => { t.colorSpace = THREE.SRGBColorSpace; this.scene.background = t; });
     this.scene.fog = new THREE.Fog('#8f957a', 30, 75);
@@ -250,12 +271,43 @@ export class Board3D {
     this.renderer.setSize(w, h);
     this.composer.setSize(w, h);
     this.camera.aspect = w / h;
-    // fit board: portrait screens need the camera further away
+    const kind = h > w * 1.05 ? 'port' : 'land';
+    if (kind !== layoutKind) {
+      setLayout(kind);
+      artCache.clear();
+      this.terrainSig = '';
+      for (const tk of this.tokens.values()) this.root.remove(tk.group);
+      this.tokens.clear();
+      if (this.last) this.sync(this.last[0], this.last[1]);
+    }
+    this.fitCamera(w, h);
+  }
+  private last?: [GameState, PlayerId];
+
+  /** Auto-fit: the board fills the screen between the top HUD and the hand strip (~90% of the area). */
+  fitCamera(w: number, h: number) {
+    const cam = this.camera;
     const portrait = h > w;
-    const dist = portrait ? 25 + (h / w - 1) * 12 : 16.8;
-    this.camera.position.set(0, dist * 0.92, dist * 0.62 + 1.5);
-    this.camera.lookAt(0, 0, portrait ? 2.2 : 2.0);
-    this.camera.updateProjectionMatrix();
+    const pitch = portrait ? 1.2 : 1.05;           // radians above horizontal: steep, so far rows don't shrink much
+    const topPx = portrait ? 104 : 58, bottomPx = portrait ? 196 : 118, sidePx = portrait ? 4 : 8;
+    const xMax = 1 - (2 * sidePx) / w;
+    const yTop = 1 - (2 * topPx) / h, yBot = -1 + (2 * bottomPx) / h;
+    const hw = (COLS * CELL) / 2, hd = ROW_Z[3] + ROW_D / 2;
+    const pts = [[-hw, 0, -hd], [hw, 0, -hd], [-hw, 0, hd], [hw, 0, hd], [-hw, 0.35, -hd], [hw, 0.35, -hd]].map(([x, y, z]) => new THREE.Vector3(x, y, z));
+    let dist = 22, tz = 0;
+    const v = new THREE.Vector3();
+    for (let i = 0; i < 80; i++) {
+      cam.position.set(0, Math.sin(pitch) * dist, tz + Math.cos(pitch) * dist);
+      cam.lookAt(0, 0, tz);
+      cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const p of pts) { v.copy(p).project(cam); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+      const sc = Math.max((x1 - x0) / (2 * xMax), (y1 - y0) / (yTop - yBot));
+      dist *= 1 + (sc - 1) * 0.6;
+      tz -= ((y0 + y1) / 2 - (yTop + yBot) / 2) * dist * 0.15; // board too high on screen → look farther out
+      tz = Math.max(-6, Math.min(6, tz)); dist = Math.max(8, Math.min(60, dist));
+    }
+    (this.scene.fog as THREE.Fog).near = dist * 1.4; (this.scene.fog as THREE.Fog).far = dist * 3.5;
   }
 
   setSeat(seat: PlayerId) {
@@ -279,7 +331,7 @@ export class Board3D {
     for (const pos of allCells()) {
       const t: Terrain = s.terrain[pos.col];
       const h = 0.07 + (t === 'ridge' ? 0.18 : 0);
-      const geo = new THREE.BoxGeometry(CELL * 0.93, h, 1.66);
+      const geo = new THREE.BoxGeometry(CELL * 0.97, h, ROW_D * 0.97);
       geo.translate(0, h / 2, 0);
       const back = pos.row === 0 || pos.row === 3;
       const tint = t === 'ridge' ? '#e8e2c4' : back ? '#bcc4a8' : '#d2d8bf';
@@ -294,7 +346,7 @@ export class Board3D {
       this.tiles.set(key(pos), m);
       this.tileTop.set(key(pos), h);
       // fine brass edge line around each cell
-      const w = CELL * 0.93 / 2, d = 0.83;
+      const w = CELL * 0.97 / 2, d = ROW_D * 0.97 / 2;
       const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(-w, 0, -d), new THREE.Vector3(w, 0, -d), new THREE.Vector3(w, 0, d), new THREE.Vector3(-w, 0, d)]),
         new THREE.LineBasicMaterial({ color: t === 'ridge' ? '#f3d999' : '#c9a25a', transparent: true, opacity: 0.55 }));
@@ -303,7 +355,7 @@ export class Board3D {
     }
     // the trench: no-man's-land between the two front rows
     const trenchTex = paintedTex('/board/ground.webp', COLS, 0.4);
-    const trench = new THREE.Mesh(new THREE.PlaneGeometry(CELL * COLS + 0.6, 0.62), new THREE.MeshStandardMaterial({ color: '#9a7e5c', map: trenchTex, roughness: 1 }));
+    const trench = new THREE.Mesh(new THREE.PlaneGeometry(CELL * COLS + 0.2, GAP + 0.06), new THREE.MeshStandardMaterial({ color: '#9a7e5c', map: trenchTex, roughness: 1 }));
     trench.rotation.x = -Math.PI / 2; trench.position.set(0, 0.012, 0); add(trench);
     // terrain labels at both ends of each special column
     for (let c = 0; c < COLS; c++) {
@@ -320,6 +372,7 @@ export class Board3D {
 
   // ───────── sync formations ─────────
   sync(s: GameState, viewer: PlayerId) {
+    this.last = [s, viewer];
     this.buildTiles(s);
     const seen = new Set<number>();
     for (const f of s.formations) {
@@ -338,6 +391,7 @@ export class Board3D {
   private drawHands(s: GameState) {
     if (!this.hands.parent) this.root.add(this.hands);
     this.hands.clear();
+    if (!RULES.formations) return; // column hands cut in v0.7
     for (let c = 0; c < COLS; c++) {
       for (const p of [0, 1] as PlayerId[]) {
         const h = columnHand(s, p, c);
@@ -354,14 +408,14 @@ export class Board3D {
   private makeToken(f: Formation, s: GameState, viewer: PlayerId): Token {
     const group = new THREE.Group();
     const h = 0.22;
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.32, h, 1.32), new THREE.MeshStandardMaterial({ color: '#1c1b1e', metalness: 0.6, roughness: 0.4 }));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(TOKEN_W, h, TOKEN), new THREE.MeshStandardMaterial({ color: '#1c1b1e', metalness: 0.6, roughness: 0.4 }));
     body.position.y = h / 2; body.castShadow = true;
-    const top = new THREE.Mesh(new THREE.PlaneGeometry(1.14, 1.14), new THREE.MeshStandardMaterial({ roughness: 0.7 }));
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(TOKEN_W * 0.94, TOKEN * 0.92), new THREE.MeshStandardMaterial({ roughness: 0.7 }));
     top.rotation.x = -Math.PI / 2; top.position.y = h + 0.005;
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 0.93, 4, 1, Math.PI / 4), new THREE.MeshBasicMaterial({ color: f.owner === viewer ? ME_COLOR : OPP_COLOR }));
-    ring.rotation.x = -Math.PI / 2; ring.position.y = h + 0.01;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(TOKEN * 0.62, TOKEN * 0.7, 4, 1, Math.PI / 4), new THREE.MeshBasicMaterial({ color: f.owner === viewer ? ME_COLOR : OPP_COLOR }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = h + 0.01; ring.scale.x = TOKEN_W / TOKEN;
     const label = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false, transparent: true }));
-    label.scale.set(1.35, 0.59, 1); label.position.y = h + 0.75; label.renderOrder = 10;
+    label.scale.set(TOKEN_W * 0.98, (TOKEN_W * 0.98) / LABEL_ASPECT, 1); label.position.set(0, h + 0.3, TOKEN * 0.34 * (this.seat === 1 ? -1 : 1)); // stats along the edge nearest the viewer label.renderOrder = 10;
     group.add(body, top, ring, label);
     this.root.add(group);
     const tk: Token = { fid: f.fid, group, body, top, label, ring, sig: '', pos: f.pos };
@@ -392,7 +446,7 @@ export class Board3D {
     tk.body.scale.y = 1 + (f.cards.length - 1) * 0.6;
     const h = (tk.body.geometry as THREE.CylinderGeometry).parameters.height * tk.body.scale.y;
     tk.body.position.y = h / 2;
-    tk.top.position.y = h + 0.005; tk.ring.position.y = h + 0.01; tk.label.position.y = h + 0.75;
+    tk.top.position.y = h + 0.005; tk.ring.position.y = h + 0.01; tk.label.position.y = h + 0.3; tk.label.position.z = TOKEN * 0.34 * (this.seat === 1 ? -1 : 1);
     // cloak shimmer
     if (f.cloaked && !tk.cloak) {
       const m = cloakMat(); this.shaders.push(m);
