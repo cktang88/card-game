@@ -4,7 +4,7 @@ import {
   DeployOrder, Formation, GameEvent, GameState, PlayerId, canDeployAt, def, formationAt, lead, other, simulate, RULES,
 } from '../shared/engine';
 import { Board3D } from './board3d';
-import { cardEl, previewEl } from './cardview';
+import { cardEl, openInspect, previewEl } from './cardview';
 import { Controller, LocalAIGame, OnlineGame } from './net';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -84,6 +84,13 @@ function startGame(c: Controller) {
   c.onInfo = (m) => log(`⚠ ${m}`);
   board.renderer.domElement.addEventListener('click', onBoardClick);
   board.renderer.domElement.addEventListener('mousemove', onBoardHover);
+  board.renderer.domElement.addEventListener('contextmenu', (ev) => {
+    ev.preventDefault();
+    if (!state) return;
+    const p = board.pick(ev.clientX, ev.clientY);
+    const f = p ? formationAt(state, p) : undefined;
+    if (f && lead(f) && f.cards[0].id !== '?') openInspect(lead(f).id, formationDetail(f));
+  });
 }
 
 async function pump() {
@@ -156,6 +163,11 @@ function renderHand(cpLeft: number) {
     };
     el.onmouseenter = () => showPreview(d.id);
     el.onmouseleave = () => showPreview(null);
+    el.oncontextmenu = (e) => { e.preventDefault(); openInspect(d.id); };
+    onLongPress(el, () => openInspect(d.id));
+    const n = state.players[me].hand.length, i = state.players[me].hand.indexOf(c), mid = (n - 1) / 2;
+    el.style.setProperty('--fan', `${((i - mid) * 2.2).toFixed(1)}deg`);
+    el.style.setProperty('--arc', `${(Math.abs(i - mid) ** 1.6 * 2.2).toFixed(1)}px`);
     h.appendChild(el);
   }
 }
@@ -226,10 +238,23 @@ function formationInfo(f: Formation): string {
   return parts.join('<br>');
 }
 
-let previewId: string | null = null;
+function formationDetail(f: Formation): string {
+  const owner = f.owner === me ? 'Yours' : 'Enemy';
+  const cards = f.cards.map((c) => `${CARD_BY_ID[c.id].name}${c.grow ? ` (evolved +${c.grow})` : ''}${c.dmg ? ` (−${c.dmg} Power)` : ''}`).join('<br>');
+  return `<b>${owner}</b> · Power <b>${f.cards.reduce((a, c) => a + Math.max(0, CARD_BY_ID[c.id].power + (c.grow ?? 0) - c.dmg), 0)}</b> · Nerve <b>${f.morale}</b>${f.cloaked ? ' · cloaked' : ''}<br>${f.cards.length > 1 ? 'Stack (top card leads):<br>' : ''}${cards}`;
+}
+
+function onLongPress(el: HTMLElement, fn: () => void) {
+  let t = 0;
+  el.addEventListener('touchstart', () => { t = window.setTimeout(fn, 480); }, { passive: true });
+  for (const ev of ['touchend', 'touchmove', 'touchcancel']) el.addEventListener(ev, () => clearTimeout(t));
+}
+
+let previewKey: string | null = null;
 function showPreview(id: string | null, extra = '') {
-  if (id === previewId && !extra) return;
-  previewId = id;
+  const k = id ? id + extra : null;
+  if (k === previewKey) return;
+  previewKey = k;
   const el = $('preview');
   el.innerHTML = '';
   if (id) el.appendChild(previewEl(id, extra));
