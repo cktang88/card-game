@@ -144,6 +144,33 @@ function labelCanvas(f: Formation, s: GameState, viewer: PlayerId): HTMLCanvasEl
   return c;
 }
 
+/** Procedural painted-dirt texture shared by all tiles (mud, grit, scorch marks). */
+let groundTex: THREE.Texture | null = null;
+function groundTexture(): THREE.Texture {
+  if (groundTex) return groundTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#9a9a9a'; g.fillRect(0, 0, 256, 256);
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 900; i++) {
+    const v = 90 + rnd() * 120;
+    g.fillStyle = `rgba(${v},${v * 0.95},${v * 0.85},${0.08 + rnd() * 0.18})`;
+    g.beginPath(); g.ellipse(rnd() * 256, rnd() * 256, 2 + rnd() * 14, 1 + rnd() * 7, rnd() * 3, 0, Math.PI * 2); g.fill();
+  }
+  for (let i = 0; i < 40; i++) { // cracks
+    g.strokeStyle = `rgba(30,24,18,${0.15 + rnd() * 0.25})`; g.lineWidth = 0.6 + rnd() * 1.2;
+    g.beginPath(); let x = rnd() * 256, y = rnd() * 256; g.moveTo(x, y);
+    for (let k = 0; k < 5; k++) { x += (rnd() - 0.5) * 30; y += (rnd() - 0.5) * 30; g.lineTo(x, y); }
+    g.stroke();
+  }
+  groundTex = new THREE.CanvasTexture(c);
+  groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
+  groundTex.colorSpace = THREE.SRGBColorSpace;
+  return groundTex;
+}
+
 // ───────────────────────── token ─────────────────────────
 interface Token {
   fid: number;
@@ -243,8 +270,8 @@ export class Board3D {
       const h = BASE_H + t.elev * ELEV_H;
       const geo = new THREE.CylinderGeometry(R * 0.96, R * 0.98, h, 6);
       geo.translate(0, h / 2, 0);
-      const base = t.terrain === 'ruins' ? '#4b4640' : t.terrain === 'crater' ? '#2a2420' : t.terrain === 'relay' ? '#3a3a40' : ['#5a5246', '#6a604f', '#7a6e58'][t.elev];
-      const mat = new THREE.MeshStandardMaterial({ color: base, roughness: 0.92, metalness: 0.05, flatShading: true });
+      const base = t.terrain === 'ruins' ? '#5a5048' : t.terrain === 'crater' ? '#2e2620' : t.terrain === 'relay' ? '#4a4a52' : ['#6b5d48', '#7d6c52', '#93805f'][t.elev];
+      const mat = new THREE.MeshStandardMaterial({ color: base, map: groundTexture(), roughness: 0.95, metalness: 0.04, flatShading: true });
       const m = new THREE.Mesh(geo, mat);
       const [x, z] = hexXZ(t.pos);
       m.position.set(x, 0, z);
@@ -271,7 +298,7 @@ export class Board3D {
         this.root.add(ring);
       }
       if (t.terrain === 'relay') {
-        const rm = ringMat(new THREE.Color('#9aa0b0'));
+        const rm = ringMat(new THREE.Color('#8a7650'));
         this.shaders.push(rm);
         const ring = new THREE.Mesh(new THREE.RingGeometry(0.66, 0.84, 6), rm);
         ring.rotation.x = -Math.PI / 2; ring.position.set(x, h + 0.015, z);
@@ -292,7 +319,7 @@ export class Board3D {
     // tiles state (relay owners, fortified)
     for (const t of s.tiles) {
       const ring = this.relayRings.get(key(t.pos));
-      if (ring) (ring.material as THREE.ShaderMaterial).uniforms.uColor.value = t.relayOwner === -1 ? new THREE.Color('#9aa0b0') : t.relayOwner === viewer ? ME_COLOR : OPP_COLOR;
+      if (ring) (ring.material as THREE.ShaderMaterial).uniforms.uColor.value = t.relayOwner === -1 ? new THREE.Color('#8a7650') : t.relayOwner === viewer ? ME_COLOR : OPP_COLOR;
       const tile = this.tiles.get(key(t.pos))!;
       const mat = tile.material as THREE.MeshStandardMaterial;
       mat.emissive = new THREE.Color(t.fortified ? '#3a2a10' : '#000');
