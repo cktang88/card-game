@@ -43,4 +43,8 @@ async function gen(id: string) {
   console.log(`ok ${id} ($${j.usage?.cost?.toFixed(3) ?? '?'})`);
 }
 
-for (const id of ids) await gen(id).catch((e) => console.error('FAIL', e.message));
+// 3 at a time
+const queue = [...ids];
+await Promise.all([0, 1, 2].map(async () => {
+  while (queue.length) { const id = queue.shift()!; await gen(id).catch((e) => console.error('FAIL', e.message)); }
+}));

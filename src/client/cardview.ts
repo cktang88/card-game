@@ -1,5 +1,6 @@
 import { CARD_BY_ID, CardDef, FACTION_INFO, KEYWORD_HELP, isTactic, rangeOf } from '../shared/cards';
 import { glyph } from './board3d';
+import { ART } from './art-manifest';
 
 export function cardEl(d: CardDef, opts: { big?: boolean } = {}): HTMLDivElement {
   const el = document.createElement('div');
@@ -25,8 +26,8 @@ export function cardEl(d: CardDef, opts: { big?: boolean } = {}): HTMLDivElement
   // real art if present
   const art = el.querySelector('.art') as HTMLDivElement;
   const img = new Image();
-  img.onload = () => { art.classList.remove('ph'); art.style.backgroundImage = `url(/art/${d.id}.png)`; };
-  img.src = `/art/${d.id}.png`;
+  if (ART.has(d.id)) img.onload = () => { art.classList.remove('ph'); art.style.backgroundImage = `url(/art/${d.id}.webp)`; };
+  if (ART.has(d.id)) img.src = `/art/${d.id}.webp`;
   return el;
 }
 

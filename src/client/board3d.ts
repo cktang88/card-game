@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { CARD_BY_ID, FACTION_INFO, Faction } from '../shared/cards';
+import { ART } from './art-manifest';
 import { Pos, ROWS, key, rowWidth } from '../shared/hex';
 import {
   Formation, GameEvent, GameState, PlayerId, has, isFearless, isHQ, lead, leadDef, linkSource, maxNerve, power,
@@ -82,8 +83,8 @@ function tokenTexture(id: string, faction: Faction): THREE.Texture {
   tex.rotation = -Math.PI / 2;   // token faces are rotated 90° to align the hex
   artCache.set(k, tex);
   // try real art
-  if (id !== '?') {
-    new THREE.TextureLoader().load(`/art/${id}.png`, (t) => {
+  if (ART.has(id)) {
+    new THREE.TextureLoader().load(`/art/${id}.webp`, (t) => {
       t.colorSpace = THREE.SRGBColorSpace;
       // crop portrait to square centre
       t.repeat.set(1, 2 / 3); t.offset.set(0, 1 / 6);
