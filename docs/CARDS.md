@@ -99,5 +99,5 @@ _Unseen. Cloaks, decoys and ambush._
 | **Night of Knives** | 2 | – | – | – | Tactic | All your cloaked units strike +3 this round. | One coordinated massacre. | knives |
 | **Rumor-Wright** | 2 | 1 | 3 | 2 | Operative | Its Shock ignores Standards and other auras. | Gets around officers and standards. | dread |
 | **Hollow Choir** | 3 | 1 | 4 | melee | Psion | Each round: the enemy units facing it take 1 Shock. | Slowly unravels anything that stands next to it. | dread |
-| **Dread Herald** | 4 | 2 | 4 | 2 | Psion | On Reveal: enemies in its column and the columns beside it take 1 Shock. | Softens a whole cluster before the knives go in. | dread |
+| **Dread Herald** | 3 | 2 | 4 | 2 | Psion | On Reveal: enemies in its column and the columns beside it take 1 Shock. | Softens a whole cluster before the knives go in. | dread |
 | **False Orders** | 2 | – | – | – | Tactic | Target enemy loses its ability and strikes −2 this round. | Switches off their key piece (Synapse, Guard, Officer) for a round. | dread, phantom |

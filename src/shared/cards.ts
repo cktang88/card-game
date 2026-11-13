@@ -247,7 +247,7 @@ export const CARDS: CardDef[] = [
     keywords: ['dread'], text: 'Each round: the enemy units facing it take 1 Shock.',
     niche: 'Slowly unravels anything that stands next to it.',
     art: 'a circle of masked figures humming in fog, the air around them warped, distant soldiers covering their ears in dread' }),
-  c({ id: 'v_herald', name: 'Dread Herald', faction: 'hush', cost: 4, power: 2, nerve: 4, range: 2, cls: 'Psion', arch: ['dread'],
+  c({ id: 'v_herald', name: 'Dread Herald', faction: 'hush', cost: 3, power: 2, nerve: 4, range: 2, cls: 'Psion', arch: ['dread'],
     keywords: ['nightmare'], text: 'On Reveal: enemies in its column and the columns beside it take 1 Shock.',
     niche: 'Softens a whole cluster before the knives go in.',
     art: 'a towering cloaked figure with a cracked mask and nothing behind it, colonial soldiers in olive greatcoats and red-striped steel helmets around it clutching their heads in terror' }),

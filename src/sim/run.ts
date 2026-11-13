@@ -14,6 +14,11 @@ if (colsArg) setCols(Number(colsArg.split('=')[1]));
 if (process.argv.includes('--no-formations')) RULES.formations = false;
 const resArg = process.argv.find((a) => a.startsWith('--resolve='));
 if (resArg) RULES.startResolve = Number(resArg.split('=')[1]);
+// generic A/B: --rule=key=value (numbers or true/false) overrides RULES
+for (const a of process.argv.filter((a) => a.startsWith('--rule='))) {
+  const [k, v] = a.slice(7).split('=');
+  (RULES as Record<string, unknown>)[k] = v === 'true' ? true : v === 'false' ? false : Number(v);
+}
 const FACTIONS: Faction[] = ['concord', 'brood', 'hush'];
 
 interface Entry { f: Faction; arch?: string; label: string }
