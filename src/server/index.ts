@@ -51,7 +51,7 @@ function code(): string {
 }
 function broadcast(r: Room) {
   if (!r.state) return;
-  for (const seat of [0, 1] as PlayerId[]) send(r.sockets[seat], { t: 'state', state: viewFor(r.state, seat), events: r.state.events });
+  for (const seat of [0, 1] as PlayerId[]) { const v = viewFor(r.state, seat); send(r.sockets[seat], { t: 'state', state: v, events: v.events }); }
 }
 
 const wss = new WebSocketServer({ server, path: '/ws' });

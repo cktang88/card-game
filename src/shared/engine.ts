@@ -919,6 +919,9 @@ export function viewFor(s: GameState, viewer: PlayerId): GameState {
   for (const f of v.formations)
     if (f.owner !== viewer && f.cloaked) { f.cards = [{ uid: -1, id: '?', dmg: 0 }]; f.morale = -1; }
   for (const i of v.inbound) if (i.owner !== viewer) i.card = { uid: -1, id: '?', dmg: 0 };
+  // events: hide what cloaked enemy units are
+  for (const e of v.events) if (e.t === 'deploy' && e.owner !== viewer && v.players[e.owner].faction === 'hush') e.id = '?';
+  v.log = [];
   v.rng = 0;
   return v;
 }

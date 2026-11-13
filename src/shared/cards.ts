@@ -221,7 +221,10 @@ export const CARDS: CardDef[] = [
 
 export const HQ_ID: Record<Faction, string> = { concord: 'c_hq', brood: 'b_hq', hush: 'v_hq' };
 
-export const CARD_BY_ID: Record<string, CardDef> = Object.fromEntries(CARDS.map((d) => [d.id, d]));
+/** Placeholder for hidden cards (cloaked enemies, opponent's hand) in redacted views. */
+export const UNKNOWN_CARD: CardDef = { id: '?', name: 'Unknown', faction: 'hush', cost: 0, power: 2, nerve: 3, cls: 'Operative', arch: [], keywords: [], text: 'Cloaked. Get adjacent to reveal it.', art: '' };
+
+export const CARD_BY_ID: Record<string, CardDef> = { ...Object.fromEntries(CARDS.map((d) => [d.id, d])), '?': UNKNOWN_CARD };
 
 export const FACTION_INFO: Record<Faction, { name: string; color: string; blurb: string; archetypes: Record<string, string> }> = {
   concord: { name: 'Concord Vanguard', color: '#c8553d', blurb: 'Hold the line. Disciplined ranks that rout, then regroup.',
