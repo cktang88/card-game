@@ -736,10 +736,11 @@ function nextRound(s: GameState) {
 }
 
 // ───────────────────────── preview ─────────────────────────
-export function simulate(s: GameState, p: PlayerId, orders: Orders): GameState {
+/** Resolve one round on a copy. The opponent passes unless `oppOrders` (a predicted reply) is given. */
+export function simulate(s: GameState, p: PlayerId, orders: Orders, oppOrders?: Orders): GameState {
   const c = structuredClone({ ...s, log: [], events: [] }) as GameState;
   c.players[p].orders = orders;
-  c.players[other(p)].orders = { deploys: [] };
+  c.players[other(p)].orders = oppOrders ?? { deploys: [] };
   resolveRound(c);
   return c;
 }
