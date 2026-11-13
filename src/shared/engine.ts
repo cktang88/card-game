@@ -401,7 +401,7 @@ export function strikeValue(s: GameState, a: Formation, t: Formation, rear: bool
   let v = power(a) + a.buffs.power;
   if (allies(s, a).some((o) => has(o, 'officer'))) v += 1;
   const link = linkSource(s, a);
-  if (link && has(link, 'overmind')) v += 1;
+  if (link && has(link, 'overmind')) v += 2;
   if (terrainAt(s, a.pos.col) === 'ridge') v += 1;
   if (isRanged(ad) && terrainAt(s, t.pos.col) === 'ruins' && !kw('artillery')) v -= 1;
   if (rear) { v += RULES.rear; if (kw('raider')) v += 2; }

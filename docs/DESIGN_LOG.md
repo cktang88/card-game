@@ -70,3 +70,13 @@ may say more about the AI than the cards.
 Passing: length, morale, seat, card outliers (mostly), dead cards, comeback (borderline).
 Still failing: knives (~38–44) and synapse (~40–46) sit at the bottom edge, and bastion is around 42–45.
 Next: knives' payoff (v_needle and v_knives are both low), then the synapse text change.
+
+## 8. The Faceless: cost 4 → 3 (KEPT)
+- **Hypothesis:** knives (~40) lacks a finisher that lands on time. Every knives card was at 37–45%.
+- **Result:** knives 50/51, Faceless 50/52% when played.
+- **Decision:** KEEP.
+
+## 9. Overmind Aspect: linked strike +1 → +2 (KEPT)
+- **Hypothesis (follow-up to #6):** the cost cut didn't help, so the payoff is too subtle. A Synapse deck should feel the Overmind arrive.
+- **Result:** synapse 45/47, Overseer 45/48% when played. Apex is still at the bottom edge (38/44).
+- **Decision:** KEEP. Card text updated.

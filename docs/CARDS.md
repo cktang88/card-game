@@ -72,7 +72,7 @@ _Swarm & evolve. Fearless while linked; every bite makes them bigger._
 | **Thoughtstalk Warden** | 2 | 2 | 5 | melee | Synapse | Synapse: Brood beside, in front of or behind it are Fearless. | Makes the swarm around it unbreakable. Kill it and they can panic again. | synapse, tide |
 | **Throat-Sac Howler** | 2 | 2 | 3 | melee | Beast | Terror: +2 against units at half Nerve or less. | Finishes off wavering units. | synapse |
 | **Nightmaw Leech** | 3 | 2 | 3 | 2 | Beast | Infect: each enemy it breaks rises as a Skitterling in your line. | Turns their losses into your swarm. | synapse, tide |
-| **Overmind Aspect** | 4 | 3 | 5 | 2 | Synapse | Synapse. Linked Brood strike +1. | The army-wide upgrade; the enemy must go through the swarm to reach it. | synapse |
+| **Overmind Aspect** | 4 | 3 | 5 | 2 | Synapse | Synapse. Linked Brood strike +2. | The army-wide upgrade; the enemy must go through the swarm to reach it. | synapse |
 | **Frenzy Pheromone** | 2 | – | – | – | Tactic | Target ally and the allies around it strike +2 this round. | Swarm-wide surge for the decisive round. | tide, apex |
 | **Psychic Scream** | 2 | – | – | – | Tactic | Enemy Front units in target ally’s column and the columns beside it take 2 Shock. | Shatters whatever is pressed against your swarm. | synapse |
 
@@ -95,7 +95,7 @@ _Unseen. Cloaks, decoys and ambush._
 | **Glasswalk Stalkers** | 2 | 2 | 3 | melee | Operative | Fade: re-cloaks each round if nothing faces it. | Hit, step back into the dark, ambush again. | knives |
 | **Quiet Needle** | 3 | 2 | 2 | 3 | Operative | Lethal. Silent: striking never reveals it (but it gets no ambush bonus). | An invisible sniper; find it by walking into it. | knives |
 | **Nightglass Skiff** | 3 | 3 | 3 | melee | Vehicle | Raider: +2 on rear strikes. | Strikes deep behind their lines. | knives |
-| **The Faceless** | 4 | 4 | 4 | melee | Operative | Hunter. Its ambush is Lethal against Officers and Synapses. | Decapitation: kills the unit their army leans on. | knives |
+| **The Faceless** | 3 | 4 | 4 | melee | Operative | Hunter. Its ambush is Lethal against Officers and Synapses. | Decapitation: kills the unit their army leans on. | knives |
 | **Night of Knives** | 2 | – | – | – | Tactic | All your cloaked units strike +3 this round. | One coordinated massacre. | knives |
 | **Rumor-Wright** | 2 | 1 | 3 | 2 | Operative | Its Shock ignores Standards and other auras. | Gets around officers and standards. | dread |
 | **Hollow Choir** | 3 | 1 | 4 | melee | Psion | Each round: the enemy units facing it take 1 Shock. | Slowly unravels anything that stands next to it. | dread |
