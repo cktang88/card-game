@@ -60,3 +60,25 @@ No copyrighted reference images were downloaded or used as inputs.
 **Next step:** 9 images, one per archetype. Each faction's motifs must hold across very different subjects (an officer, a structure, a vehicle, a synapse beast, a psion). Watch:
 - vehicles and structures keeping the civilisation look;
 - the bottom-quarter framing.
+
+## batch1: meta-prompt v2, one card per archetype (9) + 2 redos
+- **Cost:** about $0.26.
+- **Note:** OpenRouter's in-flight budget rejected 3 parallel requests (account balance ≈ $3.40), so generation now runs one at a time.
+
+| Card | Verdict | Notes |
+|---|---|---|
+| Whistle-Lieutenant | ✅ | Officer pose, whistle, armband and helmet stripe all on-model. |
+| Bastion Pillbox | ❌ → redo ✅ | v1 drew a soldier with a tiny pillbox behind. The subject was rewritten as "sole central subject, no people", and the redo is a strong hero bunker with a red chevron. |
+| Bulwark Mk.III Walker | ✅ | The civilisation look holds on vehicles. |
+| Sporemother Pod | ✅ | The fungal-coral motif holds on a structure. |
+| The Gorgemaw | ✅ | Strong "mostly mouth" read. The fleeing humans were generic, so the subject now specifies Concord soldiers for future regenerations. |
+| Thoughtstalk Warden | ✅ | Glowing cranium and psychic threads, unmistakably Brood. |
+| Mirage Weaver | ✅ | Conjured copies read clearly. |
+| Nightglass Skiff | ⚠ → redo ✅ | v1 riders dominated and the craft was unreadable. The redo shows a blade-shaped obsidian hull with violet lines. |
+| Dread Herald | ✅ | Towering presence, terrified soldiers. |
+
+**Learnings, applied to card subjects (not the global prompt)**
+- Structure and vehicle cards must say "sole central subject"; otherwise the model adds a person.
+- Humans appearing in Brood or Hush art are specified as Concord soldiers, for world coherence.
+- The Faceless mask was changed from "chrome" to porcelain with kintsugi seams, per the Hush bible.
+- Hush risks sameness (hooded figures). Their subjects deliberately vary: a device, a vehicle, close portraits, an empty-darkness scene, an enemy point of view.
