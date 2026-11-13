@@ -91,3 +91,33 @@ A secretive, ritualised stealth culture.
 - Size: 1024×1536 portrait. Output: `public/art/<card_id>.png` (committed).
 - Prompt = card subject + faction visual bible + global style suffix + negatives.
 - The key lives only in `.env` (gitignored) and is never committed.
+
+## Generation process (staged, quality-gated)
+
+Card art is generated in small rounds. The meta-prompt is iterated before scaling up.
+
+1. **Pilot (2–3 images).** Generate one hero card per faction, e.g. Dustcoat Fusiliers,
+   Scythe Ravager and Hushblade Initiates, with `gpt-image-2.6-sunburst`.
+2. **Review against references.** Place the drafts side by side with reference card art
+   from Infinity Wars, Gwent, KARDS and 40k. References are only for comparison; they are
+   never used as image inputs or copied. Score each draft on:
+   - **Beauty / finish:** painterly quality, lighting, no AI artefacts (hands, faces, extra limbs outside the Brood).
+   - **Faction distinctness:** can you tell the faction from a thumbnail without colour cues? Does it match the faction's visual bible?
+   - **Civilisation consistency:** same armour, masks, materials and glow colour as the other units of that faction.
+   - **Pose and composition:** a strong silhouette, a dynamic or heroic pose, and a focal point in the middle band.
+   - **Overlay space:** quiet top ~18% and bottom ~28%.
+   - **Mood:** the faction's feel (stoic and desperate / predatory and humid / uncanny and quiet).
+3. **Iterate the meta-prompt** (global style suffix + faction bible + subject template) until
+   all three pilots pass every check. Record each prompt revision and its verdict in
+   `docs/ART_LOG.md`.
+4. **Scale gradually:**
+   - 1 card per archetype (9 images) → review.
+   - Then one full faction (15) → review.
+   - Then the rest.
+
+   Any failure stops the batch, and the prompt is fixed before continuing.
+5. **Regenerate individual misses** with a per-card subject tweak; don't change the global prompt for one card.
+
+Script: `npm run art -- --ids c_trooper,b_ravager,v_blade --round pilot1`. Drafts go to
+`art-drafts/<round>/` with each prompt saved next to its image. Approved images are copied
+to `public/art/<card_id>.png`, which the client loads automatically. All approved art is committed.
