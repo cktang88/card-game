@@ -15,33 +15,34 @@ import { CARD_BY_ID, CardDef, Faction, Keyword, isTactic, rangeOf, starterDeck }
 // ───────────────────────── tunables ─────────────────────────
 export const RULES = {
   maxRounds: 8,
-  startResolve: 14,
+  startResolve: 9,      // v0.7 (#18): low enough that armies collapse (80% of games)
   handStart: 5,
   handMax: 8,
   drawPerRound: 2,
   stackMax: 3,
   swarmStackMax: 5,
   cpCap: 7,
-  maxStakes: 8,
+  maxStakes: 8,         // Escalate = Snap-style match stakes. Bots cannot measure it; judged by human playtest (#20)
   ambush: 1,
-  rear: 1,
-  flank: 1,
-  flood: 2,
-  breachDrain: 1,
+  rear: 0,              // cut in v0.7 (#17)
+  flank: 0,             // cut in v0.7 (#17)
+  flood: 0,             // cut in v0.7 (#17)
+  breachDrain: 0,       // cut in v0.7: removing it improved every fun proxy (#17)
   breachFromRound: 2,
   evolveMax: 3,
-  terrainColumns: 0,    // 0 = auto (≈ width / 2.5), -1 = no terrain
-  cohesionMax: 2,
-  drilled: 1,           // Concord: extra cohesion Nerve per round (A/B tested 2: no effect, DESIGN_LOG #12)
-  formations: true,     // column hands: the higher hand holds the Edge (+1 strikes) in that column
+  terrainColumns: -1,   // 0 = auto (≈ width / 2.5), -1 = no terrain (cut in v0.7, #17)
+  cohesionMax: 0,       // cut in v0.7 (#17)
+  drilled: 0,           // cut in v0.7 (#17)
+  formations: false,    // column hands / Edge cut in v0.7 (#17)
   edge: 1,              // strike bonus in a column where you hold the Edge
-  underdogCp: 1,        // extra Command next round for the player behind on Resolve by ≥ 3
+  laneStake: 0,         // secret per-column Stake. 0 off · 1 doubler (losses there ×2, REJECTED #19) · 2 bet (win the column +1 Resolve, lose it −1) · 3 transfer (win it: enemy −1; lose it: you −1)
+  underdogCp: 0,        // extra Command next round for the player behind on Resolve by ≥ 3
 };
 export const cpForRound = (round: number) => Math.min(round + 1, RULES.cpCap);
 
 // ───────────────────────── grid ─────────────────────────
 /** Board width (columns). Live binding: change via setCols(). */
-export let COLS = 7;
+export let COLS = 5; // v0.7: 5 lanes (DESIGN_LOG #17–18)
 export function setCols(n: number) { COLS = n; }
 export const ROWS = 4;
 /** Rows: 0 = P1 Back, 1 = P1 Front, 2 = P0 Front, 3 = P0 Back. */
@@ -87,7 +88,7 @@ export interface Formation {
 }
 
 export interface DeployOrder { uid: number; pos: Pos }
-export interface Orders { deploys: DeployOrder[]; escalate?: boolean }
+export interface Orders { deploys: DeployOrder[]; escalate?: boolean; stake?: number } // stake: secret column bet (RULES.laneStake)
 
 export interface PlayerState {
   faction: Faction;
@@ -120,6 +121,7 @@ export type GameEvent =
   | { t: 'evolve'; fid: number; pos: Pos }
   | { t: 'rally'; fid: number; pos: Pos; amount: number }
   | { t: 'resolve'; player: PlayerId; delta: number; reason: string }
+  | { t: 'stake'; col: number; owner: PlayerId }
   | { t: 'round'; round: number };
 
 export interface GameState {
@@ -138,6 +140,9 @@ export interface GameState {
   breaches: number[];          // fids In Breach this round
   flanked: Record<number, number>; // fid → extra Shock per strike taken this round
   edge: (-1 | PlayerId)[];     // per column: who holds the Edge this round
+  staked: number[];            // columns staked this round (revealed)
+  stakeBy: [number, number];   // each player's staked column this round (−1 none)
+  colLoss: [number[], number[]]; // Resolve lost per column this round
   log: string[];
   events: GameEvent[];
   stats: { breaks: [number, number]; destroyed: [number, number]; resolveBy: Record<string, number> };
@@ -168,7 +173,7 @@ export function newGame(f0: Faction, f1: Faction, seed = Date.now() & 0xffffffff
     players: [mkPlayer(f0), mkPlayer(f1)],
     terrain: Array(COLS).fill('open'),
     formations: [], nextId: 1, initiative: 0, stakes: 1, pendingEscalations: 0,
-    winner: null, endReason: '', breaches: [], flanked: {}, edge: [], log: [], events: [],
+    winner: null, endReason: '', breaches: [], flanked: {}, edge: [], staked: [], stakeBy: [-1, -1], colLoss: [[], []], log: [], events: [],
     stats: { breaks: [0, 0], destroyed: [0, 0], resolveBy: {} },
   };
   s.initiative = rand(s) < 0.5 ? 0 : 1;
@@ -313,8 +318,10 @@ export function chooseTarget(s: GameState, f: Formation): { t: Formation; rear: 
 }
 
 // ───────────────────────── resolve / win ─────────────────────────
-function loseResolve(s: GameState, p: PlayerId, n: number, reason: string, cat: string) {
+function loseResolve(s: GameState, p: PlayerId, n: number, reason: string, cat: string, col?: number) {
   if (n <= 0 || s.winner !== null) return;
+  if (RULES.laneStake === 1 && col !== undefined && s.staked.includes(col)) { n *= 2; reason += ' ×2 staked'; }
+  if (col !== undefined) s.colLoss[p][col] = (s.colLoss[p][col] ?? 0) + n;
   s.players[p].resolve -= n;
   s.stats.resolveBy[cat] = (s.stats.resolveBy[cat] ?? 0) + n;
   s.events.push({ t: 'resolve', player: p, delta: -n, reason });
@@ -357,7 +364,7 @@ function damage(s: GameState, f: Formation, amount: number) {
     top.dmg += take; amount -= take;
     if (cardPower(top) <= 0) {
       f.cards.pop();
-      if (!top.token) { s.players[f.owner].discard.push(top.id); loseResolve(s, f.owner, 1, `${def(top).name} destroyed`, 'kills'); }
+      if (!top.token) { s.players[f.owner].discard.push(top.id); loseResolve(s, f.owner, 1, `${def(top).name} destroyed`, 'kills', f.pos.col); }
       s.stats.destroyed[f.owner]++;
       f.morale = Math.min(f.morale, maxNerve(f));
     }
@@ -473,7 +480,7 @@ function fallout(s: GameState) {
         const real = f.cards.filter((c) => !c.token);
         s.stats.breaks[f.owner]++;
         s.events.push({ t: 'break', fid: f.fid, pos: f.pos });
-        if (!decoy) loseResolve(s, f.owner, real.length, `${leadDef(f).name} broke`, 'morale');
+        if (!decoy) loseResolve(s, f.owner, real.length, `${leadDef(f).name} broke`, 'morale', f.pos.col);
         // Routed, not dead: the top card falls back to hand to be rallied later.
         const top = real[real.length - 1];
         if (top && !decoy) { top.dmg = 0; top.grow = 0; if (pl.hand.length < RULES.handMax) pl.hand.push(top); else pl.discard.push(top.id); }
@@ -547,6 +554,7 @@ export function validateOrders(s: GameState, p: PlayerId, o: Orders): string | n
   }
   if (total > pl.cp) return 'not enough Command';
   if (o.escalate && pl.escalateUsed) return 'already escalated';
+  if (o.stake !== undefined && o.stake !== -1 && (!RULES.laneStake || o.stake < 0 || o.stake >= COLS)) return 'bad stake';
   return null;
 }
 
@@ -625,6 +633,11 @@ function resolveRound(s: GameState) {
   s.events.push({ t: 'step', step: 'reveal' });
   const placed: [Formation, CardDef][] = [];
   const tactics: [PlayerId, CardInst, Pos][] = [];
+  s.staked = []; s.stakeBy = [-1, -1]; s.colLoss = [[], []];
+  if (RULES.laneStake) for (const p of [0, 1] as PlayerId[]) {
+    const st = s.players[p].orders?.stake;
+    if (st !== undefined && st >= 0 && st < COLS) { s.stakeBy[p] = st; if (!s.staked.includes(st)) s.staked.push(st); s.events.push({ t: 'stake', col: st, owner: p }); s.log.push(`P${p} stakes column ${st}`); }
+  }
   for (const p of [s.initiative, other(s.initiative)]) {
     const pl = s.players[p];
     const o = pl.orders!;
@@ -672,9 +685,25 @@ function resolveRound(s: GameState) {
   // ── UPKEEP ──
   s.events.push({ t: 'step', step: 'upkeep' });
   upkeep(s);
+  if (RULES.laneStake >= 2 && s.winner === null) settleStakes(s);
   checkWin(s);
   if (s.winner !== null) return;
   nextRound(s);
+}
+
+/** Stake bet: you win your staked column if the enemy lost more Resolve there this round (+1), lose it if you did (−1). */
+function settleStakes(s: GameState) {
+  for (const p of [0, 1] as PlayerId[]) {
+    const c = s.stakeBy[p];
+    if (c < 0) continue;
+    const mine = s.colLoss[p][c] ?? 0, theirs = s.colLoss[other(p)][c] ?? 0;
+    if (theirs > mine && RULES.laneStake === 3) loseResolve(s, other(p), 1, `P${p} won the staked column ${c}`, 'stake');
+    else if (theirs > mine) {
+      s.players[p].resolve = Math.min(RULES.startResolve, s.players[p].resolve + 1);
+      s.events.push({ t: 'resolve', player: p, delta: 1, reason: `won the staked column ${c}` });
+      s.log.push(`P${p} wins stake on column ${c}: +1 Resolve`);
+    } else if (mine > theirs) loseResolve(s, p, 1, `lost the staked column ${c}`, 'stake');
+  }
 }
 
 function upkeep(s: GameState) {

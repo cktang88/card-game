@@ -138,3 +138,32 @@ The stripped game is close to the outsiders' skeleton: few lanes, Front/Back, mo
 plus log reading: (a) a secret per-lane Stake in place of global escalation, (b) stronger rout contagion with quiet kills,
 (c) fresh-threshold morale in place of accumulated Shock (the "morale ≠ health" fix). Faction identity lost with the cut rules
 (Hold the Line, Drilled, Flood, One Organism) must be rebuilt on cards or a single faction rule each.
+
+## 18. Stripped needs a breaking point: starting Resolve
+Check of the end reasons: **100% of STRIPPED games ended on the clock.** Breach drain had been the only route to collapse,
+so the better proxies came partly from close races decided by time. That's not the "one breaking point" experience. **A metric looked better while the game got worse**, which is why we read end reasons and logs, not only the summary.
+One-variable sweep of startResolve on STRIPPED (80/matchup):
+| Resolve | skill | lead changes | decided | comeback | collapse | morale |
+|---|---|---|---|---|---|---|
+| 14 | 92 | 0.85 | R6.5 | 39 | **0%** | 82 |
+| 10 | 91 | 0.81 | R6.0 | 36 | 61% | 81 |
+| **9** | **93** | **0.78** | **R5.7** | **37** | **80%** | **81** |
+| 8 | 90 | 0.70 | R5.4 | 28 | 88% | 80 |
+**Decision: v0.7 baseline = STRIPPED + Resolve 9.** It beats full v0.6 (84 / 0.55 / R5.1 / 23 / 95% / 54) on every proxy, and armies still break.
+Engine defaults updated (5 columns; formations, flank, flood, rear, cohesion, drilled, terrain, breach drain, underdog all off).
+
+## 19. Per-column Stake (from the converged pitches), three forms, all REJECTED for now
+| Variant | skill | lead changes | decided | comeback | collapse |
+|---|---|---|---|---|---|
+| v0.7 baseline | 93 | 0.78 | R5.7 | 37 | 80% |
+| doubler: losses in the staked column ×2 | 88 | 0.61 | R4.6 | 32 | 95% |
+| bet: win the column +1 Resolve / lose it −1 | 93 | 0.95 | R5.6 | 28 | 57% |
+| transfer: win it → enemy −1 / lose it → you −1 | 91 | 0.63 | R4.6 | 26 | 94% |
+**Lesson:** any extra in-board Resolve swing speeds up the snowball. The bet adds lead changes but costs comebacks and collapses.
+Kept as `RULES.laneStake` (0 = off) for later human tests.
+
+## 20. Correction: Escalate wasn't "dead weight"
+#17 called global Escalate dead because removing it changed no in-game proxy. **That's by design:** Escalate (Snap-style)
+raises what the *match result* is worth, not the board. In-game bot metrics can't detect a bluff on the stakes.
+Restored (maxStakes 8). **The gamble pillar can only be judged by human playtest** (DESIGN_PROCESS §6). Other cuts stand,
+since those rules act on the board and were measured there.

@@ -14,6 +14,9 @@ const extra = argv.filter((a) => a.startsWith('--rule=') || a.startsWith('--cols
 
 export const VARIANTS: [string, string[]][] = [
   ['baseline', []],
+  ['+ stake doubler', ['--rule=laneStake=1']],
+  ['+ stake bet ±1', ['--rule=laneStake=2']],
+  ['+ stake transfer', ['--rule=laneStake=3']],
   ['no column hands/Edge', ['--rule=formations=false']],
   ['no flanking', ['--rule=flank=0', '--rule=flood=0']],
   ['no breach drain', ['--rule=breachDrain=0']],
@@ -25,13 +28,16 @@ export const VARIANTS: [string, string[]][] = [
   ['no escalation (stakes 1)', ['--rule=maxStakes=1']],
   ['5 columns', ['--cols=5']],
   ['STRIPPED (all dead rules off, no drain, 5 cols)', ['--cols=5', '--rule=formations=false', '--rule=flank=0', '--rule=flood=0', '--rule=breachDrain=0', '--rule=cohesionMax=0', '--rule=drilled=0', '--rule=terrainColumns=-1', '--rule=rear=0', '--rule=underdogCp=0', '--rule=maxStakes=1']],
+  ['STRIPPED resolve 10', ['--resolve=10', '--cols=5', '--rule=formations=false', '--rule=flank=0', '--rule=flood=0', '--rule=breachDrain=0', '--rule=cohesionMax=0', '--rule=drilled=0', '--rule=terrainColumns=-1', '--rule=rear=0', '--rule=underdogCp=0', '--rule=maxStakes=1']],
+  ['STRIPPED resolve 9', ['--resolve=9', '--cols=5', '--rule=formations=false', '--rule=flank=0', '--rule=flood=0', '--rule=breachDrain=0', '--rule=cohesionMax=0', '--rule=drilled=0', '--rule=terrainColumns=-1', '--rule=rear=0', '--rule=underdogCp=0', '--rule=maxStakes=1']],
+  ['STRIPPED resolve 8', ['--resolve=8', '--cols=5', '--rule=formations=false', '--rule=flank=0', '--rule=flood=0', '--rule=breachDrain=0', '--rule=cohesionMax=0', '--rule=drilled=0', '--rule=terrainColumns=-1', '--rule=rear=0', '--rule=underdogCp=0', '--rule=maxStakes=1']],
   ['STRIPPED + 7 cols', ['--rule=formations=false', '--rule=flank=0', '--rule=flood=0', '--rule=breachDrain=0', '--rule=cohesionMax=0', '--rule=drilled=0', '--rule=terrainColumns=-1', '--rule=rear=0', '--rule=underdogCp=0', '--rule=maxStakes=1']],
 ];
 
 const F: Faction[] = ['concord', 'brood', 'hush'];
 const mk = (f: Faction, level: 'steel' | 'greedy'): Side => ({ f, label: f, deck: tunedDeck(f), ai: { level } });
 
-interface Row { name: string; skill: number; lead: number; decided: number; close: number; obvious: number; comeback: number; len: number; morale: number; margin: number; spread: number }
+interface Row { collapse: number; name: string; skill: number; lead: number; decided: number; close: number; obvious: number; comeback: number; len: number; morale: number; margin: number; spread: number }
 const rows: Row[] = [];
 for (const [name, flags] of VARIANTS) {
   if (only && name !== only) continue;
@@ -64,6 +70,7 @@ for (const [name, flags] of VARIANTS) {
   const avg = (f: (r: GameResult) => number) => res.reduce((a, r) => a + f(r), 0) / res.length;
   const wr = Object.values(fw).map((w) => w / (2 * N));
   const row: Row = {
+    collapse: res.filter((r) => !r.endReason.startsWith('time')).length / res.length,
     name, skill: sw / sd, lead: avg((r) => r.leadChanges), decided: avg((r) => r.decidedRound),
     close: dec.c / dec.d, obvious: dec.o / dec.d, comeback: cb / Math.max(1, cbC), len: avg((r) => r.round),
     morale: mor / Math.max(1, tot), margin: avg((r) => r.margin), spread: Math.max(...wr) - Math.min(...wr),
@@ -73,6 +80,6 @@ for (const [name, flags] of VARIANTS) {
 }
 function fmt(r: Row) {
   const p = (x: number) => `${(100 * x).toFixed(0)}%`.padStart(5);
-  return `${r.name.padEnd(26)} skill ${p(r.skill)}  leadΔ ${r.lead.toFixed(2)}  decided R${r.decided.toFixed(1)}  close ${p(r.close)}  obvious ${p(r.obvious)}  comeback ${p(r.comeback)}  len ${r.len.toFixed(1)}  morale ${p(r.morale)}  margin ${r.margin.toFixed(1)}  faction spread ${p(r.spread)}`;
+  return `${r.name.padEnd(26)} skill ${p(r.skill)}  leadΔ ${r.lead.toFixed(2)}  decided R${r.decided.toFixed(1)}  close ${p(r.close)}  obvious ${p(r.obvious)}  comeback ${p(r.comeback)}  collapse ${p(r.collapse)}  len ${r.len.toFixed(1)}  morale ${p(r.morale)}  margin ${r.margin.toFixed(1)}  faction spread ${p(r.spread)}`;
 }
 writeFileSync('docs/ablation-last-run.txt', rows.map(fmt).join('\n') + '\n');

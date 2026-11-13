@@ -123,6 +123,7 @@ function refresh() {
   const spent = pending.reduce((a, d) => a + def(P.hand.find((h) => h.uid === d.uid)!).cost, 0);
   $('cp-n').textContent = String(P.cp - spent);
   const esc = $<HTMLInputElement>('escalate');
+  (esc.closest('label') as HTMLElement).style.display = RULES.maxStakes > 1 ? '' : 'none';
   esc.disabled = P.escalateUsed || locked;
   if (P.escalateUsed) esc.checked = false;
   $<HTMLButtonElement>('btn-lock').disabled = locked || s.phase === 'over';

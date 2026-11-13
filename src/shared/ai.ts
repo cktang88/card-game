@@ -7,7 +7,7 @@
 //              every deck is played toward its own best plan.
 import { Faction, isTactic, starterDeck } from './cards';
 import {
-  GameState, Orders, PlayerId, Pos, allCells, canDeployAt, computeBreaches, def, facing, formationAt, isFearless,
+  COLS, GameState, Orders, PlayerId, Pos, RULES, allCells, canDeployAt, computeBreaches, def, facing, formationAt, isFearless,
   isFront, isFrontCell, key, maxNerve, other, power, simulate,
 } from './engine';
 import PROFILES from './ai-profiles.json';
@@ -139,6 +139,12 @@ function greedy(s: GameState, p: PlayerId, w: AiWeights, rnd: () => number, maxC
     cp -= cd.cost;
     if (!isTactic(cd)) usedCell.add(key(best.pos));
     baseline = bestV + cd.cost * 0.15 - (isTactic(cd) ? w.tactic : 0);
+  }
+  // Secret per-column Stake: pick the column (or none) that the score likes best.
+  if (RULES.laneStake) {
+    let bestS = -1, bestSV = score(orders);
+    for (let c = 0; c < COLS; c++) { const v = score({ ...orders, stake: c }); if (v > bestSV + 0.5) { bestSV = v; bestS = c; } }
+    if (bestS >= 0) orders.stake = bestS;
   }
   return orders;
 }

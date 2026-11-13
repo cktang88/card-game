@@ -1,1 +1,1 @@
-STRIPPED + 7 cols          skill   89%  leadΔ 0.75  decided R6.2  close   40%  obvious   14%  comeback   32%  len 8.0  morale   81%  margin 2.3  faction spread   24%
++ stake transfer           skill   91%  leadΔ 0.63  decided R4.6  close   39%  obvious   17%  comeback   26%  collapse   94%  len 6.1  morale   55%  margin 3.2  faction spread   29%
