@@ -5,9 +5,8 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { CARD_BY_ID, FACTION_INFO, Faction } from '../shared/cards';
 import { ART } from './art-manifest';
-import { Pos, ROWS, key, rowWidth } from '../shared/hex';
 import {
-  Formation, GameEvent, GameState, PlayerId, has, isFearless, isHQ, lead, leadDef, linkSource, maxNerve, power,
+  Formation, GameEvent, GameState, PlayerId, Pos, allCells, key, isFearless, lead, leadDef, linkSource, maxNerve, power, Terrain,
 } from '../shared/engine';
 
 const R = 1;              // hex radius
@@ -18,10 +17,11 @@ const BASE_H = 0.22;
 export const ME_COLOR = new THREE.Color('#e0a03c');
 export const OPP_COLOR = new THREE.Color('#c8452f');
 
+const CELL = 1.75;            // column spacing
+const ROW_Z = [-3.05, -1.2, 1.2, 3.05];
+/** World x/z of a battle-line cell (kept the old name for minimal churn). */
 export function hexXZ(p: Pos): [number, number] {
-  const x = SQ3 * R * (p.col + (p.row % 2 === 0 ? 0.5 : 0)) - SQ3 * R * 3;
-  const z = 1.5 * R * p.row - 1.5 * R * (ROWS - 1) / 2;
-  return [x, z];
+  return [(p.col - 2) * CELL, ROW_Z[p.row]];
 }
 
 // ───────────────────────── shaders ─────────────────────────
@@ -80,7 +80,6 @@ function tokenTexture(id: string, faction: Faction): THREE.Texture {
   const tex: THREE.Texture = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.center.set(0.5, 0.5);
-  tex.rotation = -Math.PI / 2;   // token faces are rotated 90° to align the hex
   artCache.set(k, tex);
   // try real art
   if (ART.has(id)) {
@@ -117,7 +116,6 @@ function labelCanvas(f: Formation, s: GameState, viewer: PlayerId): HTMLCanvasEl
   const pw = unknown ? '?' : String(power(f));
   const fearless = !unknown && isFearless(s, f);
   const nv = unknown ? '?' : fearless ? '∞' : `${Math.max(0, f.morale)}`;
-  if (!unknown && isHQ(f)) return c;
   const num = (txt: string, x: number, y: number, fill: string, stroke: string) => {
     g.font = '900 40px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.lineJoin = 'round'; g.lineWidth = 7; g.strokeStyle = stroke; g.strokeText(txt, x, y);
@@ -251,9 +249,9 @@ export class Board3D {
     this.camera.aspect = w / h;
     // fit board: portrait screens need the camera further away
     const portrait = h > w;
-    const dist = portrait ? 22 + (h / w - 1) * 10 : 15.5;
+    const dist = portrait ? 19 + (h / w - 1) * 9 : 14.2;
     this.camera.position.set(0, dist * 0.92, dist * 0.62 + 1.5);
-    this.camera.lookAt(0, 0, portrait ? 0.8 : 1.1);
+    this.camera.lookAt(0, 0, portrait ? 2.2 : 2.0);
     this.camera.updateProjectionMatrix();
   }
 
@@ -262,51 +260,55 @@ export class Board3D {
     this.root.rotation.y = seat === 1 ? Math.PI : 0;
   }
 
-  // ───────── board tiles ─────────
+  // ───────── board: the battle line ─────────
+  private terrainSig = '';
+  private boardObjs: THREE.Object3D[] = [];
   buildTiles(s: GameState) {
-    for (const t of s.tiles) {
-      const k = key(t.pos);
-      if (this.tiles.has(k)) continue;
-      const h = BASE_H + t.elev * ELEV_H;
-      const geo = new THREE.CylinderGeometry(R * 0.96, R * 0.98, h, 6);
+    const sig = s.terrain.join(',');
+    if (sig === this.terrainSig) return;
+    this.terrainSig = sig;
+    for (const o of this.boardObjs) this.root.remove(o);
+    this.boardObjs = []; this.tiles.clear(); this.tileTop.clear();
+    const add = (o: THREE.Object3D) => { this.root.add(o); this.boardObjs.push(o); };
+    for (const pos of allCells()) {
+      const t: Terrain = s.terrain[pos.col];
+      const h = BASE_H + (t === 'ridge' ? 0.32 : 0);
+      const geo = new THREE.BoxGeometry(CELL * 0.92, h, 1.62);
       geo.translate(0, h / 2, 0);
-      const base = t.terrain === 'ruins' ? '#5a5048' : t.terrain === 'crater' ? '#2e2620' : t.terrain === 'relay' ? '#4a4a52' : ['#6b5d48', '#7d6c52', '#93805f'][t.elev];
-      const mat = new THREE.MeshStandardMaterial({ color: base, map: groundTexture(), roughness: 0.95, metalness: 0.04, flatShading: true });
+      const back = pos.row === 0 || pos.row === 3;
+      const base = t === 'ruins' ? '#5a5048' : t === 'ridge' ? '#8a7858' : back ? '#5e5242' : '#6b5d48';
+      const mat = new THREE.MeshStandardMaterial({ color: base, map: groundTexture(), roughness: 0.95, metalness: 0.04 });
       const m = new THREE.Mesh(geo, mat);
-      const [x, z] = hexXZ(t.pos);
+      const [x, z] = hexXZ(pos);
       m.position.set(x, 0, z);
-      m.rotation.y = Math.PI / 6 * 0; // pointy-top: cylinder's default vertex at +z → rotate 30° for pointy
-      m.rotation.y = 0;
       m.castShadow = true; m.receiveShadow = true;
-      m.userData.pos = t.pos;
-      this.root.add(m);
-      this.tiles.set(k, m);
-      this.tileTop.set(k, h);
-      // decorations
-      if (t.terrain === 'ruins') {
-        for (let i = 0; i < 4; i++) {
-          const b = new THREE.Mesh(new THREE.BoxGeometry(0.18 + Math.random() * 0.2, 0.15 + Math.random() * 0.35, 0.18), mat);
-          const a = (i / 4) * Math.PI * 2 + 0.4;
-          b.position.set(x + Math.cos(a) * 0.62, h + 0.1, z + Math.sin(a) * 0.62);
+      m.userData.pos = pos;
+      add(m);
+      this.tiles.set(key(pos), m);
+      this.tileTop.set(key(pos), h);
+      if (t === 'ruins') {
+        for (let i = 0; i < 3; i++) {
+          const b = new THREE.Mesh(new THREE.BoxGeometry(0.16 + Math.random() * 0.2, 0.12 + Math.random() * 0.3, 0.16), mat);
+          b.position.set(x + (i - 1) * 0.6, h + 0.08, z + (i % 2 ? 0.66 : -0.66));
           b.rotation.y = Math.random() * 3; b.castShadow = true;
-          this.root.add(b);
+          add(b);
         }
       }
-      if (t.terrain === 'crater') {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.12, 6, 18), new THREE.MeshStandardMaterial({ color: '#3a302a', roughness: 1 }));
-        ring.rotation.x = Math.PI / 2; ring.position.set(x, h + 0.02, z);
-        this.root.add(ring);
-      }
-      if (t.terrain === 'relay') {
-        const rm = ringMat(new THREE.Color('#8a7650'));
-        this.shaders.push(rm);
-        const ring = new THREE.Mesh(new THREE.RingGeometry(0.66, 0.84, 6), rm);
-        ring.rotation.x = -Math.PI / 2; ring.position.set(x, h + 0.015, z);
-        this.root.add(ring);
-        this.relayRings.set(k, ring);
-        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 1.2, 6), new THREE.MeshStandardMaterial({ color: '#888', metalness: 0.8, roughness: 0.3 }));
-        mast.position.set(x + 0.62, h + 0.6, z - 0.3);
-        this.root.add(mast);
+    }
+    // the trench: no-man's-land between the two front rows
+    const trench = new THREE.Mesh(new THREE.BoxGeometry(CELL * 5 + 0.6, 0.06, 0.55), new THREE.MeshStandardMaterial({ color: '#1a1410', roughness: 1 }));
+    trench.position.set(0, 0.03, 0); add(trench);
+    for (let i = 0; i < 9; i++) {
+      const wire = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.012, 4, 10), new THREE.MeshStandardMaterial({ color: '#4a4038', metalness: 0.6, roughness: 0.5 }));
+      wire.position.set((i - 4) * 1.0, 0.16, 0); wire.rotation.y = Math.PI / 2; add(wire);
+    }
+    // terrain labels at both ends of each special column
+    for (let c = 0; c < 5; c++) {
+      const t = s.terrain[c];
+      if (t === 'open') continue;
+      for (const z of [this.seat === 0 ? 4.25 : -4.25]) {
+        const lbl = textSprite(t === 'ridge' ? 'RIDGE  +1' : 'RUINS  −1 RANGED', t === 'ridge' ? '#f3d999' : '#c9b9a0');
+        lbl.position.set((c - 2) * CELL, 0.25, z); add(lbl);
       }
     }
   }
@@ -316,14 +318,6 @@ export class Board3D {
   // ───────── sync formations ─────────
   sync(s: GameState, viewer: PlayerId) {
     this.buildTiles(s);
-    // tiles state (relay owners, fortified)
-    for (const t of s.tiles) {
-      const ring = this.relayRings.get(key(t.pos));
-      if (ring) (ring.material as THREE.ShaderMaterial).uniforms.uColor.value = t.relayOwner === -1 ? new THREE.Color('#8a7650') : t.relayOwner === viewer ? ME_COLOR : OPP_COLOR;
-      const tile = this.tiles.get(key(t.pos))!;
-      const mat = tile.material as THREE.MeshStandardMaterial;
-      mat.emissive = new THREE.Color(t.fortified ? '#3a2a10' : '#000');
-    }
     const seen = new Set<number>();
     for (const f of s.formations) {
       seen.add(f.fid);
@@ -337,16 +331,13 @@ export class Board3D {
 
   private makeToken(f: Formation, s: GameState, viewer: PlayerId): Token {
     const group = new THREE.Group();
-    const isHq = isHQ(f);
-    const rad = isHq ? 0.86 : 0.7;
-    const h = isHq ? 0.6 : 0.22;
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad * 1.05, h, 6), new THREE.MeshStandardMaterial({ color: '#1c1b1e', metalness: 0.6, roughness: 0.4 }));
+    const h = 0.22;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.32, h, 1.32), new THREE.MeshStandardMaterial({ color: '#1c1b1e', metalness: 0.6, roughness: 0.4 }));
     body.position.y = h / 2; body.castShadow = true;
-    const topGeo = new THREE.CircleGeometry(rad * 0.86, 6);
-    const top = new THREE.Mesh(topGeo, new THREE.MeshStandardMaterial({ roughness: 0.7 }));
-    top.rotation.x = -Math.PI / 2; top.rotation.z = Math.PI / 2; top.position.y = h + 0.005;
-    const ring = new THREE.Mesh(new THREE.RingGeometry(rad * 0.88, rad * 1.02, 6), new THREE.MeshBasicMaterial({ color: f.owner === viewer ? ME_COLOR : OPP_COLOR }));
-    ring.rotation.x = -Math.PI / 2; ring.rotation.z = Math.PI / 2; ring.position.y = h + 0.01;
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(1.14, 1.14), new THREE.MeshStandardMaterial({ roughness: 0.7 }));
+    top.rotation.x = -Math.PI / 2; top.position.y = h + 0.005;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 0.93, 4, 1, Math.PI / 4), new THREE.MeshBasicMaterial({ color: f.owner === viewer ? ME_COLOR : OPP_COLOR }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = h + 0.01;
     const label = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false, transparent: true }));
     label.scale.set(1.35, 0.59, 1); label.position.y = h + 0.75; label.renderOrder = 10;
     group.add(body, top, ring, label);
@@ -383,14 +374,14 @@ export class Board3D {
     // cloak shimmer
     if (f.cloaked && !tk.cloak) {
       const m = cloakMat(); this.shaders.push(m);
-      tk.cloak = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.8, 1.1, 6, 1, true), m);
-      tk.cloak.position.y = 0.55;
+      tk.cloak = new THREE.Mesh(new THREE.CylinderGeometry(0.98, 1.0, 1.1, 4, 1, true), m);
+      tk.cloak.position.y = 0.55; tk.cloak.rotation.y = Math.PI / 4;
       tk.group.add(tk.cloak);
     } else if (!f.cloaked && tk.cloak) { tk.group.remove(tk.cloak); tk.cloak = undefined; }
     (tk.top.material as THREE.MeshStandardMaterial).transparent = f.cloaked;
     (tk.top.material as THREE.MeshStandardMaterial).opacity = f.cloaked ? (f.owner === viewer ? 0.6 : 0.25) : 1;
     // broken smoke
-    const shaky = id !== '?' && !isHQ(f) && !isFearless(s, f) && wavering(f);
+    const shaky = id !== '?' && !isFearless(s, f) && wavering(f);
     if (shaky && !tk.smoke) { tk.smoke = makeSmoke(); tk.group.add(tk.smoke); }
     else if (!shaky && tk.smoke) { tk.group.remove(tk.smoke); tk.smoke = undefined; }
     (tk.body.material as THREE.MeshStandardMaterial).emissive = new THREE.Color(shaky ? '#3a0e08' : '#000');
@@ -428,8 +419,8 @@ export class Board3D {
   highlight(hexes: Pos[], color = '#e0a03c') {
     for (const p of hexes) {
       const [x, z] = hexXZ(p);
-      const m = new THREE.Mesh(new THREE.RingGeometry(0.72, 0.92, 6), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false }));
-      m.rotation.x = -Math.PI / 2; m.rotation.z = Math.PI / 2;
+      const m = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.12, 4, 1, Math.PI / 4), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2;
       m.position.set(x, this.topY(p) + 0.03, z);
       this.overlays.add(m);
     }
@@ -443,8 +434,8 @@ export class Board3D {
       this.overlays.add(m);
       return;
     }
-    const top = new THREE.Mesh(new THREE.CircleGeometry(0.62, 6), new THREE.MeshBasicMaterial({ map: tokenTexture(id, faction), transparent: true, opacity: 0.75 }));
-    top.rotation.x = -Math.PI / 2; top.rotation.z = Math.PI / 2;
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({ map: tokenTexture(id, faction), transparent: true, opacity: 0.75 }));
+    top.rotation.x = -Math.PI / 2;
     top.position.set(x, this.topY(p) + (this.occupied(p) ? 1.0 : 0.3), z);
     this.overlays.add(top);
   }
@@ -461,6 +452,27 @@ export class Board3D {
         l.computeLineDistances();
         this.overlays.add(l);
         this.overlays.add(arrowHead(new THREE.Vector3(x0, 0.12 + this.topY(e.from), z0), new THREE.Vector3(x1, this.topY(e.to) + 0.12, z1), ownerOf(e.fid) === viewer ? '#f3d38a' : '#ff8a7a', 0.18));
+      } else if (e.t === 'breach') {
+        // gold chevrons charging into the empty enemy column
+        const [x, z] = hexXZ(e.pos);
+        const dir = e.pos.row >= 2 ? -1 : 1;
+        for (let k = 0; k < 3; k++) {
+          const ch = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.32, 3), new THREE.MeshBasicMaterial({ color: '#ffd27a', transparent: true, opacity: 0.95 - k * 0.22 }));
+          ch.rotation.x = dir * Math.PI / 2; ch.rotation.y = 0;
+          ch.position.set(x, 0.5, z + dir * (1.0 + k * 0.42));
+          this.overlays.add(ch);
+        }
+      } else if (e.t === 'flank') {
+        // red brackets on both sides of a flanked unit
+        const [x, z] = hexXZ(e.pos);
+        for (const sx of [-1, 1]) {
+          const br = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.5, 1.2), new THREE.MeshBasicMaterial({ color: '#ff4a32' }));
+          br.position.set(x + sx * 0.8, this.topY(e.pos) + 0.3, z);
+          this.overlays.add(br);
+        }
+        const lbl = textSprite(`FLANKED +${e.amount}`, '#ff8a6a');
+        lbl.position.set(x, this.topY(e.pos) + 1.45, z); lbl.scale.set(1.8, 0.23, 1);
+        this.overlays.add(lbl);
       } else if (e.t === 'strike') {
         const mine = ownerOf(e.fid) === viewer;
         const col = e.lethal ? '#ff3b2b' : mine ? '#ffd27a' : '#ff7a5a';
@@ -589,7 +601,7 @@ export class Board3D {
     for (const m of this.shaders) if (m.uniforms.uTime) m.uniforms.uTime.value = t;
     for (const tk of this.tokens.values()) {
       if (tk.smoke) animateSmoke(tk.smoke, t);
-      tk.top.rotation.z = Math.PI / 2 + (tk.group.userData.shaken ? Math.sin(t * 30) * 0.03 : 0);
+      tk.top.rotation.z = tk.group.userData.shaken ? Math.sin(t * 30) * 0.03 : 0;
     }
     for (const l of this.links.children) ((l as THREE.Line).material as THREE.LineDashedMaterial & { dashOffset?: number });
     this.composer.render();
@@ -624,4 +636,16 @@ function animateSmoke(p: THREE.Points, t: number) {
   a.needsUpdate = true;
 }
 
-export { rowWidth };
+/** Small always-facing-camera text label (terrain names, etc.). */
+function textSprite(text: string, color: string): THREE.Sprite {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 64;
+  const g = c.getContext('2d')!;
+  g.font = '700 34px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 6; g.strokeStyle = 'rgba(0,0,0,.85)'; g.strokeText(text, 256, 32);
+  g.fillStyle = color; g.fillText(text, 256, 32);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sp.scale.set(2.2, 0.28, 1);
+  return sp;
+}

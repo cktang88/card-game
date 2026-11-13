@@ -1,7 +1,6 @@
 import { CARD_BY_ID, FACTION_INFO, Faction, isTactic } from '../shared/cards';
-import { Pos, allHexes, key, samePos } from '../shared/hex';
 import {
-  DeployOrder, Formation, GameEvent, GameState, PlayerId, canDeployAt, def, formationAt, lead, other, simulate, RULES,
+  DeployOrder, Formation, GameEvent, GameState, PlayerId, Pos, allCells, canDeployAt, def, formationAt, isFrontCell, key, lead, other, samePos, simulate, RULES,
 } from '../shared/engine';
 import { Board3D } from './board3d';
 import { cardEl, openInspect, previewEl } from './cardview';
@@ -134,7 +133,7 @@ function refresh() {
   $('hint').textContent = locked ? 'Orders locked. Waiting for the enemy…'
     : oppLocked ? 'The enemy has locked in their orders.'
     : selected !== null ? 'Click a highlighted hex to place it (or click the card again to cancel).'
-    : 'Pick cards and place them touching your army. Arrows show what will happen. Then Lock In.';
+    : 'Place cards on your Front or Back row. An empty enemy column is a breach. Arrows show what will happen. Then Lock In.';
 }
 
 function setResolve(id: string, n: number) {
@@ -177,7 +176,8 @@ function legalHexes(uid: number): Pos[] {
   const c = state.players[me].hand.find((h) => h.uid === uid);
   if (!c) return [];
   const d = def(c);
-  return allHexes().filter((p) => canDeployAt(state!, me, d, p) && (isTactic(d) || !pending.some((q) => samePos(q.pos, p) && !isTactic(def(state!.players[me].hand.find((h) => h.uid === q.uid)!)))));
+  const unitCells = pending.filter((q) => !isTactic(def(state!.players[me].hand.find((h) => h.uid === q.uid)!))).map((q) => q.pos);
+  return allCells().filter((p) => canDeployAt(state!, me, d, p, unitCells) && (isTactic(d) || !unitCells.some((q) => samePos(q, p))));
 }
 
 function drawOverlays() {
@@ -190,7 +190,7 @@ function drawOverlays() {
       const owner = (fid: number) => state!.formations.find((f) => f.fid === fid)?.owner ?? sim.formations.find((f) => f.fid === fid)?.owner;
       const seen = new Set<number>();
       const evs = sim.events.filter((e) => {
-        if (e.t === 'strike') return true;
+        if (e.t === 'strike' || e.t === 'breach' || e.t === 'flank') return true;
         if (e.t === 'move' && !seen.has(e.fid)) { seen.add(e.fid); return true; }
         return false;
       });
@@ -272,7 +272,7 @@ $('btn-retreat').onclick = () => {
 };
 
 // ───────────────────────── playback ─────────────────────────
-const STEP_NAMES: Record<string, string> = { reveal: 'REVEAL', strike: 'STRIKE', fallout: 'FALLOUT', upkeep: 'UPKEEP' };
+const STEP_NAMES: Record<string, string> = { reveal: 'REVEAL', breach: 'BREACH', strike: 'STRIKE', fallout: 'FALLOUT', upkeep: 'UPKEEP' };
 
 async function playback(prev: GameState, next: GameState, ev: GameEvent[]) {
   board.clearOverlays();
@@ -316,7 +316,8 @@ async function handleMinor(e: GameEvent, next: GameState, nameOf: (fid: number) 
       else await board.animateDeploy({ ...f, pos: e.pos }, next, me);
       break;
     }
-    case 'bounce': board.float(e.pos, e.owner === me ? 'HEX TAKEN' : 'BLOCKED', '#ffd27a'); break;
+    case 'breach': board.float(e.pos, 'BREACH!', '#ffd27a'); log(`${e.owner === me ? 'You break' : 'Enemy breaks'} through in column ${e.pos.col + 1}`); break;
+    case 'flank': board.float(e.pos, `FLANKED +${e.amount}`, '#ff7a5a'); break;
     case 'heal': board.float(e.pos, `+${e.amount} ♥`, '#7aff8a'); break;
     case 'tactic': board.float(e.pos, CARD_BY_ID[e.id].name, '#ffe9b0'); board.burst(e.pos, '#fff0c0', 18); log(`${e.owner === me ? 'You' : 'Enemy'} played ${CARD_BY_ID[e.id].name}`); await sleep(350); break;
     case 'move': await board.animateMove(e.fid, e.to); break;

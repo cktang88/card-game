@@ -256,19 +256,7 @@ export const CARDS: CardDef[] = [
     niche: 'Switches off their key piece (Synapse, Guard, Officer) for a round.',
     art: 'a radio operator of the colonial soldiers in olive greatcoats and red-striped steel helmets listening in confusion to a distorted voice, a masked figure in the shadows behind them' }),
 
-  // ═══════════════ HQs (start on the board; anchor your placement; cannot be attacked) ═══════════════
-  c({ id: 'c_hq', name: 'Command Bunker', faction: 'concord', cost: 0, power: 0, nerve: 0, range: 0, cls: 'HQ', arch: [],
-    keywords: ['hq'], text: 'Your army spreads out from here.', niche: '',
-    art: 'as the sole dominant central subject, a fortified command bunker of riveted plate and sandbags on a hill, radio masts and searchlights' }),
-  c({ id: 'b_hq', name: 'Brood Heart', faction: 'brood', cost: 0, power: 0, nerve: 0, range: 0, cls: 'HQ', arch: [],
-    keywords: ['hq'], text: 'Your army spreads out from here.', niche: '',
-    art: 'an alien architecture landscape with NO creatures in the foreground: a colossal hive citadel of tall curved black-green carapace towers and pointed arches like a cathedral grown from beetle shell, glowing green seams and windows, rising out of mist, seen from far away, tiny flying shapes circling its spires' }),
-  c({ id: 'v_hq', name: 'Veil Nexus', faction: 'hush', cost: 0, power: 0, nerve: 0, range: 0, cls: 'HQ', arch: [],
-    keywords: ['hq'], text: 'Your army spreads out from here.', niche: '',
-    art: 'as the sole dominant central subject, an ancient dark-teal stone temple gate half-dissolved into violet fog, monumental architecture with tall pointed arches and a violet-glowing doorway, no people in the foreground, two tiny masked sentinels standing at the gate' }),
 ];
-
-export const HQ_ID: Record<Faction, string> = { concord: 'c_hq', brood: 'b_hq', hush: 'v_hq' };
 
 /** Placeholder for hidden cards (cloaked enemies, opponent's hand) in redacted views. */
 export const UNKNOWN_CARD: CardDef = { id: '?', name: 'Unknown', faction: 'hush', cost: 0, power: 2, nerve: 3, cls: 'Operative', arch: [], keywords: [], text: 'Cloaked. Place a unit next to it to reveal it.', niche: '', art: '' };
