@@ -1,4 +1,17 @@
-# SHATTERLINE: Game Design (v0.6, the Battle Line)
+# SHATTERLINE: Game Design
+
+> **v0.7 (current): the stripped line.** Evidence for every cut is in [`DESIGN_LOG.md`](DESIGN_LOG.md) #13–21.
+> - Board: **5 columns** × Front/Back per side. Starting **Resolve 9**.
+> - **Cut** (removing them changed no fun proxy, or improved them): column hands/Edge, breach flanking & breach drain,
+>   cohesion regen (incl. Concord Drilled), terrain, the rear-strike bonus, Brood Flood, the Underdog CP.
+> - **Kept:** hidden simultaneous placement, stacking, straight-across strikes, Shock→break→rout-to-hand, panic,
+>   Lethal wounds, Escalate/Retreat (a match-stakes gamble judged by humans, #20), the faction rules for cloak/ambush/synapse/evolve.
+> - **Open:** faction identity for Concord (lost Hold the Line/Drilled), card texts that mention cut mechanics,
+>   whether Nerve *feels* like health (human A/B, #21), the gamble pillar (human playtest).
+>
+> The v0.6 text below is kept for history. Sections on breaches, column hands, terrain and cohesion no longer apply.
+
+# v0.6, the Battle Line (historical)
 
 > A casual-to-learn, obviously skill-based sci-fi card game about **breaking the enemy's
 > will**. Two armies face each other across a seven-column battle line. Both players place
