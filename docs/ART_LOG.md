@@ -119,3 +119,36 @@ No copyrighted reference images were downloaded or used as inputs.
 
   All four were approved; the Pheromone is still creature-forward but distinct.
 - **Learning:** for a creature faction, lead each subject with the *silhouette* (worm, humanoid, hound, cloud), not with "a beast that…".
+
+## hush: the remaining 12 Hush cards + 6 redos + 1 second redo; brood_c: Throat-Sac Howler (missed earlier)
+- **Cost:** about $0.56 for Hush and $0.02 for the Howler.
+- **Approved first pass:**
+  - Hollow Choir (ritual circle)
+  - The Faceless (over a fallen Concord officer, burning tent)
+  - False Orders (Concord radio operator, enemy point of view)
+  - Quiet Needle (prone sniper)
+  - Shroud Lantern (device)
+  - Rumor-Wright (radio and leaflets)
+- **Failed for sameness:** Veil Nexus, Night of Knives, Stalkers, Echo-Twins, Phantom Echo and Smoke & Mirrors were all "standing hooded figure with a curved blade". The Hush bible strongly pulls toward a central masked figure.
+- **Fix:** make the *effect* the subject:
+  - Veil Nexus: a temple gate.
+  - Stalkers: a glass-refraction body.
+  - Echo-Twins: mirror-symmetric twins.
+  - Phantom Echo: a hologram dissolving into static.
+  - Smoke & Mirrors: a smoke burst throwing off copies.
+
+  All approved.
+- **Night of Knives** needed a second redo. "No single figure" wasn't enough. "The operatives themselves are completely invisible, only floating eye slits and blade glints, nobody in the foreground" produced the strongest Hush image: a sleeping camp ringed by eyes.
+- **Throat-Sac Howler:** it was left out of the batches, and the coverage check caught it. The first pass shows a split throat sac with sonic rings. Approved.
+
+## Summary
+- **Coverage:** 48/48 cards have approved art (45 cards + 3 HQs).
+- **Total spend:** about $2.4 across all rounds.
+- **Process outcome:** the global meta-prompt changed once (v1 → v2, after the pilot). Every later fix was a per-card subject edit, logged above.
+- **Key learnings:**
+  1. Lock one medium explicitly. Without it the model drifts between oil and digital.
+  2. Give every faction one *signature motif* (Brood fungal-coral chitin, Hush kintsugi mask) so it doesn't drift toward existing IP.
+  3. Write subjects as silhouettes and actions with a camera angle; the faction bible pulls toward a single hero figure.
+  4. Structures and vehicles need "sole dominant central subject".
+  5. Specify the enemy humans' faction so the world stays coherent.
+- **Delivery:** approved images ship as 768px WebP in `public/art/` (5 MB total). Full-resolution PNG drafts and prompts are kept in `art-drafts/`.
