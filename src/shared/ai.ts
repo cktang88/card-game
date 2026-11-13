@@ -22,6 +22,9 @@ export function evaluate(s: GameState, p: PlayerId): number {
   return v;
 }
 
+/** Tuning knobs for sim experiments (DESIGN_LOG). */
+export const AI_TUNING = { tacticBonus: 4 }; // see DESIGN_LOG #1
+
 /** Greedy planner: repeatedly add the single placement that most improves the simulated
  *  end-of-round evaluation, until nothing helps or Command runs out. */
 export function aiOrders(s: GameState, p: PlayerId, opts: { candidates?: number } = {}): Orders {
@@ -46,7 +49,7 @@ export function aiOrders(s: GameState, p: PlayerId, opts: { candidates?: number 
         .sort((a, b) => b.sc - a.sc).slice(0, maxCand);
       for (const { h } of ranked) {
         const trial: Orders = { deploys: [...orders.deploys, { uid: c.uid, pos: h }] };
-        const v = evaluate(simulate(s, p, trial), p) - cd.cost * 0.15;
+        const v = evaluate(simulate(s, p, trial), p) - cd.cost * 0.15 + (isTactic(cd) ? AI_TUNING.tacticBonus : 0);
         if (v > bestV) { bestV = v; best = { uid: c.uid, pos: h }; }
       }
     }
@@ -55,7 +58,7 @@ export function aiOrders(s: GameState, p: PlayerId, opts: { candidates?: number 
     const cd = def(pl.hand.find((h) => h.uid === best!.uid)!);
     cp -= cd.cost;
     if (!isTactic(cd)) usedCell.add(key(best.pos));
-    baseline = bestV + cd.cost * 0.15;
+    baseline = bestV + cd.cost * 0.15 - (isTactic(cd) ? AI_TUNING.tacticBonus : 0);
   }
   const adv = evaluate(s, p);
   orders.escalate = !pl.escalateUsed && s.round >= 3 && adv > 35;

@@ -2,7 +2,9 @@
 //   npm run sim -- [gamesPerMatchup=20] [--arch] [--verbose]
 import { FACTION_INFO, Faction, starterDeck } from '../shared/cards';
 import { GameState, PlayerId, RULES, apply, newGame, setCols } from '../shared/engine';
-import { aiOrders, aiWantsRetreat } from '../shared/ai';
+import { AI_TUNING, aiOrders, aiWantsRetreat } from '../shared/ai';
+const tbArg = process.argv.find((a) => a.startsWith('--tactic-bonus='));
+if (tbArg) AI_TUNING.tacticBonus = Number(tbArg.split('=')[1]);
 
 const N = Number(process.argv[2] ?? 20);
 const byArch = process.argv.includes('--arch');
