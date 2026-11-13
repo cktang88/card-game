@@ -30,7 +30,7 @@ export const RULES = {
   breachDrain: 1,
   breachFromRound: 2,
   evolveMax: 3,
-  terrainColumns: 0,    // 0 = auto (≈ width / 2.5)
+  terrainColumns: 0,    // 0 = auto (≈ width / 2.5), -1 = no terrain
   cohesionMax: 2,
   drilled: 1,           // Concord: extra cohesion Nerve per round (A/B tested 2: no effect, DESIGN_LOG #12)
   formations: true,     // column hands: the higher hand holds the Edge (+1 strikes) in that column
@@ -174,7 +174,7 @@ export function newGame(f0: Faction, f1: Faction, seed = Date.now() & 0xffffffff
   s.initiative = rand(s) < 0.5 ? 0 : 1;
   const cols = Array.from({ length: COLS }, (_, i) => i);
   shuffle(s, cols);
-  cols.slice(0, RULES.terrainColumns || Math.round(COLS / 2.5)).forEach((c, i) => { s.terrain[c] = i % 2 === 0 ? 'ridge' : 'ruins'; });
+  cols.slice(0, RULES.terrainColumns < 0 ? 0 : RULES.terrainColumns || Math.round(COLS / 2.5)).forEach((c, i) => { s.terrain[c] = i % 2 === 0 ? 'ridge' : 'ruins'; });
   for (const p of [0, 1] as PlayerId[]) {
     const ids = decks?.[p] ?? starterDeck(s.players[p].faction);
     s.players[p].deck = ids.map((id) => ({ uid: s.nextId++, id, dmg: 0 }));

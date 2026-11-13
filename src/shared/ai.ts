@@ -27,7 +27,9 @@ export interface AiWeights {
 }
 export const DEFAULT_WEIGHTS: AiWeights = { resolve: 10, power: 1.1, morale: 1, cards: 2, shaky: 2, front: 1.5, breach: 4, fearless: 4, hand: 0, tactic: 4, reply: 0.5 };
 
-export interface AiOptions { level?: 'greedy' | 'steel'; weights?: Partial<AiWeights>; profile?: string; candidates?: number; samples?: number }
+/** Decision telemetry (Meier: a decision is interesting when several options are close in value). */
+export interface DecisionStats { decisions: number; close: number; obvious: number }
+export interface AiOptions { stats?: DecisionStats; level?: 'greedy' | 'steel'; weights?: Partial<AiWeights>; profile?: string; candidates?: number; samples?: number }
 
 /** Tuned per-deck profiles: label (e.g. "brood/tide") → weights + deck list. */
 export const AI_PROFILES = PROFILES as Record<string, { weights?: Partial<AiWeights>; deck?: string[] }>;
@@ -96,7 +98,7 @@ function determinize(s: GameState, p: PlayerId, rnd: () => number): GameState {
 }
 
 /** Greedy order builder. `score(trial)` returns the value of a full set of orders. */
-function greedy(s: GameState, p: PlayerId, w: AiWeights, rnd: () => number, maxCand: number, score: (o: Orders) => number): Orders {
+function greedy(s: GameState, p: PlayerId, w: AiWeights, rnd: () => number, maxCand: number, score: (o: Orders) => number, stats?: DecisionStats): Orders {
   const pl = s.players[p];
   const orders: Orders = { deploys: [] };
   let cp = pl.cp;
@@ -105,6 +107,7 @@ function greedy(s: GameState, p: PlayerId, w: AiWeights, rnd: () => number, maxC
   for (let iter = 0; iter < 6; iter++) {
     let best: { uid: number; pos: Pos } | null = null;
     let bestV = baseline;
+    const optionVals: { id: string; v: number }[] = iter === 0 && stats ? [{ id: 'pass', v: baseline }] : [];
     const seenCard = new Set<string>();
     const unitCells = orders.deploys.filter((d) => !isTactic(def(pl.hand.find((h) => h.uid === d.uid)!))).map((d) => d.pos);
     for (const c of pl.hand) {
@@ -117,8 +120,18 @@ function greedy(s: GameState, p: PlayerId, w: AiWeights, rnd: () => number, maxC
         .sort((a, b) => b.sc - a.sc).slice(0, maxCand);
       for (const { h } of ranked) {
         const v = score({ deploys: [...orders.deploys, { uid: c.uid, pos: h }] }) - cd.cost * 0.15 + (isTactic(cd) ? w.tactic : 0);
+        if (iter === 0 && stats) optionVals.push({ id: cd.id, v });
         if (v > bestV) { bestV = v; best = { uid: c.uid, pos: h }; }
       }
+    }
+    if (iter === 0 && stats && optionVals.length > 1) {
+      // best value per distinct card (or pass); "close" = another card within 3 eval (~0.3 Resolve)
+      const per = new Map<string, number>();
+      for (const o of optionVals) per.set(o.id, Math.max(per.get(o.id) ?? -Infinity, o.v));
+      const vals = [...per.values()].sort((a, b) => b - a);
+      stats.decisions++;
+      if (vals.length > 1 && vals[0] - vals[1] <= 3) stats.close++;
+      if (vals.length < 2 || vals[0] - vals[1] > 15) stats.obvious++;
     }
     if (!best) break;
     orders.deploys.push(best);
@@ -136,7 +149,7 @@ export function aiOrders(s: GameState, p: PlayerId, opts: AiOptions = {}): Order
   const cand = opts.candidates ?? (opts.level === 'steel' ? 6 : 5);
   let orders: Orders;
   if (opts.level !== 'steel') {
-    orders = greedy(s, p, w, rnd, cand, (o) => evaluate(simulate(s, p, o), p, w));
+    orders = greedy(s, p, w, rnd, cand, (o) => evaluate(simulate(s, p, o), p, w), opts.stats);
   } else {
     // Predict the opponent's reply on K sampled worlds, then best-respond to the mixture.
     const K = opts.samples ?? 2;
@@ -154,7 +167,7 @@ export function aiOrders(s: GameState, p: PlayerId, opts: AiOptions = {}): Order
       }
       return v / K;
     };
-    orders = greedy(s, p, w, rnd, cand, score);
+    orders = greedy(s, p, w, rnd, cand, score, opts.stats);
   }
   const adv = evaluate(s, p, w);
   orders.escalate = !s.players[p].escalateUsed && s.round >= 3 && adv > 35;
