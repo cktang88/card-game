@@ -530,3 +530,31 @@ and assumes the opponent plays nothing.
   - Ram-Track 4 Power.
   - Pillbox 3 Power.
   - Grub growth capped at +3.
+
+## 12. Making morale feel different from health (v0.5)
+
+**Feedback:** "Morale feels like health: it goes down and when it's gone the unit breaks. There must be differences players can feel, without making the game complex."
+
+**Reference designs (from earlier research, §3 and §5):**
+- **Total War:** morale recovers out of combat and near the general. Flank and rear hits cut morale, routing units can rally, and chain routs happen.
+- **Battle Brothers:** morale states change behaviour; surrounded units waver.
+- **Darkest Dungeon:** stress is a separate track that heals differently and isn't death.
+- **40k Battle-shock:** morale changes what a unit can do, not just its hit points.
+
+**Two rules adopted (each one line):**
+1. **Cohesion heals Nerve, nothing heals Power.** Each round a unit regains 1 Nerve per ally around it (max +2). Concord gets "Drilled", up to +3. Brood linked to a Synapse heal 1 wound instead ("the hive regrows flesh").
+2. **Broken ≠ dead.** A broken unit routs and its top card returns to hand. A killed unit (0 Power) is gone for good. Both cost Resolve.
+
+**Simulation:**
+- **First pass:** Concord archetypes hit 66–75% from double-dipping (Shoulder to Shoulder plus cohesion), and Brood Synapse fell to 30%.
+- **Fixes:**
+  - Concord's rule became Drilled, with Shoulder to Shoulder only when allies are on *both* sides.
+  - Brood got Regrowth.
+  - Starting Resolve 12 → 14.
+  - Sporemother Pod max 2 live hatchlings.
+  - Ram-Track cost 2.
+- **Result:**
+  - Balanced decks: Concord 48.5, Brood 52, Hush 45.5.
+  - Archetypes: 38–66%, about ±7% noise at this sample size.
+  - Morale is 66% of Resolve lost.
+  - Games run 7–8 rounds.

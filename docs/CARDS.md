@@ -28,7 +28,7 @@ Every card must answer one question: **where do I want to be placed, and why?** 
 
 _Hold the line. Rows of rifles, officers and armour._
 
-**Faction rules:** Shoulder to Shoulder: a Concord Front unit with an allied Front unit beside it strikes +1.
+**Faction rules:** Drilled: Concord units regain up to 3 Nerve per round from the allies around them (others: up to 2). Shoulder to Shoulder: a Front unit with allies on both sides strikes +1.
 
 **Archetypes:** Gunline: ranked riflemen and officers · Bastion: walls, cover and artillery · Iron Tide: armour that bulldozes
 
@@ -44,7 +44,7 @@ _Hold the line. Rows of rifles, officers and armour._
 | **Bastion Pillbox** | 2 | 3 | 0 | 2 | Structure | Fearless: Shock hits it as damage. | An unbreakable gun on a Relay; only damage removes it. | bastion |
 | **Rainmaker Mortar Team** | 3 | 2 | 2 | 3 | Infantry | Splash: also Shocks the enemies beside its target by 1. | Punishes enemies that clump together. | bastion |
 | **Hammerfall 380 Battery** | 5 | 3 | 3 | 4 | Vehicle | Artillery: ignores Ruins and Guard. Lethal. | The answer to walls, Guards and dug-in enemies, from anywhere. | bastion |
-| **Lancer Ram-Track** | 3 | 4 | 4 | melee | Vehicle | On Reveal: rams the enemy Front unit opposite one column aside. If it can’t move, 2 Shock. | The rare mover: shoves a unit off a Relay or crushes it against others. | iron |
+| **Lancer Ram-Track** | 2 | 4 | 4 | melee | Vehicle | On Reveal: rams the enemy Front unit opposite one column aside. If it can’t move, 2 Shock. | The rare mover: shoves a unit off a Relay or crushes it against others. | iron |
 | **Bulwark Mk.III Walker** | 4 | 6 | 5 | melee | Vehicle | Armor: takes 1 less damage. | Shrugs off snipers and acid. Spearheads a push. | iron, bastion |
 | **Iron Saint Siege-Crawler** | 5 | 6 | 6 | 2 | Vehicle | Breach: +2 against Fearless units and units in cover. | Cracks fortresses and unbreakable swarms. | iron |
 | **Over the Top!** | 1 | – | – | – | Tactic | Target ally strikes +3 this round. | Turns one strike into a break, the round you need it. | iron, gunline |
@@ -61,7 +61,7 @@ _Swarm & evolve. Fearless while linked; every bite makes them bigger._
 | Card | Cost | Power | Nerve | Range | Class | Text | Niche | Archetypes |
 |---|---|---|---|---|---|---|---|---|
 | **Skitterling Tide** | 1 | 2 | 2 | melee | Swarm | Swarm: stacks up to 5. | Bodies for flanking bonuses, or one huge stacked swarm. | tide |
-| **Sporemother Pod** | 2 | 3 | 0 | none | Structure | Each round: hatches a Skitterling beside it (max 3 alive). | A nest to protect; kill it early or drown in bugs. | tide |
+| **Sporemother Pod** | 2 | 3 | 0 | none | Structure | Each round: hatches a Skitterling beside it (max 2 alive). | A nest to protect; kill it early or drown in bugs. | tide |
 | **Skinwalker Mimics** | 2 | 2 | 3 | melee | Swarm | Last Breath: bursts into 2 Skitterlings. | Breaking it only makes more of them. | tide |
 | **Gnasher Pack** | 2 | 1 | 3 | melee | Beast | Pack: +1 for each adjacent ally. | Wants to be buried in the middle of the swarm. | tide, apex |
 | **Broodling Grub** | 1 | 1 | 3 | melee | Beast | Each round: grows +1 Power (max +3). | Play early, hide it behind the swarm, let it become a monster. | apex |

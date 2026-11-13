@@ -324,8 +324,9 @@ async function handleMinor(e: GameEvent, next: GameState, nameOf: (fid: number) 
     case 'strike': log(`${nameOf(e.fid)} → ${nameOf(e.target)}: ${e.amount}${e.lethal ? ' dmg' : ' shock'}`); break;
     case 'shock': board.float(e.pos, `-${e.amount} ☠`, '#6fb8ff'); break;
     case 'damage': board.float(e.pos, `-${e.amount} ♥`, '#ff5a3a'); break;
-    case 'break': board.float(e.pos, 'BROKEN!', '#ff3a2a'); board.burst(e.pos, '#ff3a2a', 30); log(`💥 ${nameOf(e.fid)} breaks and routs`); await board.animateRemove(e.fid); break;
-    case 'destroy': board.float(e.pos, 'DESTROYED', '#ff7a3a'); log(`☠ ${nameOf(e.fid)} destroyed`); await board.animateRemove(e.fid); break;
+    case 'break': board.float(e.pos, 'ROUTED', '#ff9a3a'); board.burst(e.pos, '#ff7a3a', 24); log(`💥 ${nameOf(e.fid)} breaks: routed back to hand`); await board.animateRemove(e.fid); break;
+    case 'destroy': board.float(e.pos, 'KILLED', '#ff3a2a'); board.burst(e.pos, '#ff2a1a', 34); log(`☠ ${nameOf(e.fid)} is destroyed for good`); await board.animateRemove(e.fid); break;
+    case 'rally': board.float(e.pos, `+${e.amount} RALLY`, '#8dff7a'); break;
     case 'reveal': board.float(e.pos, 'REVEALED', '#b99cff'); board.burst(e.pos, '#9a7aff', 20); break;
     case 'evolve': board.float(e.pos, 'EVOLVE', '#9dff5a'); break;
     case 'resolve': {

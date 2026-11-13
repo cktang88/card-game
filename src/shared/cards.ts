@@ -105,7 +105,7 @@ export const CARDS: CardDef[] = [
     keywords: ['artillery', 'lethal'], text: 'Artillery: ignores Ruins and Guard. Lethal.',
     niche: 'The answer to walls, Guards and dug-in enemies, from anywhere.',
     art: 'as the sole dominant central subject, a colossal self-propelled artillery gun firing into the night, recoil blasting a wall of dust, crew covering their ears' }),
-  c({ id: 'c_halftrack', name: 'Lancer Ram-Track', faction: 'concord', cost: 3, power: 4, nerve: 4, cls: 'Vehicle', arch: ['iron'],
+  c({ id: 'c_halftrack', name: 'Lancer Ram-Track', faction: 'concord', cost: 2, power: 4, nerve: 4, cls: 'Vehicle', arch: ['iron'],
     keywords: ['shove'], text: 'On Reveal: rams the enemy Front unit opposite one column aside. If it can’t move, 2 Shock.',
     niche: 'The rare mover: shoves a unit off a Relay or crushes it against others.',
     art: 'as the sole dominant central subject, a riveted armored halftrack with a huge ram plow charging through dust, soldiers clinging to its sides' }),
@@ -135,7 +135,7 @@ export const CARDS: CardDef[] = [
     niche: 'Bodies for flanking bonuses, or one huge stacked swarm.',
     art: 'a fast swarm of small sleek beetle-like hunters racing over a ridge toward the viewer, one in sharp focus in front, the rest silhouettes trailing behind, glowing green eyes' }),
   c({ id: 'b_pod', name: 'Sporemother Pod', faction: 'brood', cost: 2, power: 3, nerve: 0, range: 0, cls: 'Structure', arch: ['tide'],
-    keywords: ['fearless', 'hatch'], text: 'Each round: hatches a Skitterling beside it (max 3 alive).',
+    keywords: ['fearless', 'hatch'], text: 'Each round: hatches a Skitterling beside it (max 2 alive).',
     niche: 'A nest to protect; kill it early or drown in bugs.',
     art: 'as the sole dominant central subject, a tall armoured alien hive-spire like a giant closed seed of glossy carapace plates rooted in the ground, its plates parting along glowing green seams, small sleek hatchlings emerging' }),
   c({ id: 'b_mimic', name: 'Skinwalker Mimics', faction: 'brood', cost: 2, power: 2, nerve: 3, cls: 'Swarm', arch: ['tide'],
@@ -279,7 +279,7 @@ export const KEYWORD_HELP: Partial<Record<Keyword, string>> = {
 
 export const FACTION_INFO: Record<Faction, { name: string; color: string; blurb: string; rules: string[]; archetypes: Record<string, string> }> = {
   concord: { name: 'Concord Vanguard', color: '#c8553d', blurb: 'Hold the line. Rows of rifles, officers and armour.',
-    rules: ['Shoulder to Shoulder: a Concord Front unit with an allied Front unit beside it strikes +1.'],
+    rules: ['Drilled: Concord units regain up to 3 Nerve per round from the allies around them (others: up to 2).', 'Shoulder to Shoulder: a Front unit with allies on both sides strikes +1.'],
     archetypes: { gunline: 'Gunline: ranked riflemen and officers', bastion: 'Bastion: walls, cover and artillery', iron: 'Iron Tide: armour that bulldozes' } },
   brood: { name: 'Vhorr Brood', color: '#8fbf3a', blurb: 'Swarm & evolve. Fearless while linked; every bite makes them bigger.',
     rules: ['Flood: a Brood unit In Breach flanks for +2 instead of +1.', 'Synapse Link: Brood around a Synapse are Fearless.', 'Evolve: a Brood unit that strikes gains +1 Power (max +3).'],

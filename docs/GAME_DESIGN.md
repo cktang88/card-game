@@ -30,7 +30,7 @@
   - **Ruins:** ranged strikes *into* that column are −1.
 
 **Setup**
-- 12 Resolve, a 20-card deck, and a 5-card hand.
+- 14 Resolve, a 20-card deck, and a 5-card hand.
 
 **Each round**
 1. **Command:** gain `round + 1` (max 7). **Draw** 2.
@@ -50,11 +50,13 @@
    - **Melee unit in the Back:** does not strike. It holds the column, so the enemy can't breach it.
    - **Strike value** = Power + bonuses (Ridge, rear, flank, card text). It deals that much **Shock** to Nerve. **Lethal** strikes deal damage to Power instead.
 6. **Fallout:**
-   - A unit at 0 Nerve **breaks** and leaves; a unit at 0 Power is destroyed.
-   - Its owner loses **1 Resolve per card** in it.
+   - A unit at 0 Nerve **breaks** and **routs**: its top card returns to your hand, and the rest of the stack is discarded.
+   - A unit at 0 Power is **killed** and goes to the discard for good.
+   - Either way its owner loses **1 Resolve per card**.
    - The units **beside, in front of and behind it** panic: 1 Shock each. This cascades.
 7. **Upkeep:**
    - "Each round" effects.
+   - **Cohesion:** each unit regains **1 Nerve per ally around it** (max +2; Concord max +3). **Power never recovers.** Brood linked to a Synapse heal 1 wound instead.
    - From round 2, if any of your units that were In Breach still stand, the enemy loses **1 Resolve** (max 1 per round).
 
 **Winning**
@@ -67,12 +69,25 @@
 
 **Fearless** units never break; Shock hits them as damage instead. This covers structures and Brood next to a Synapse.
 
+## 2b. Why morale is not just a second health bar (v0.5)
+
+| | Nerve (morale) | Power (body) |
+|---|---|---|
+| Damaged by | Normal strikes, flanks, rear hits, panic, terror | Lethal strikes only |
+| Recovers? | **Yes:** every round, from the allies around it (cohesion) | **Never** (except the Brood hive) |
+| At zero | **Routs:** the card returns to your hand (tempo and Resolve lost, the unit survives) | **Killed:** the card is gone for good |
+| Player feeling | "Keep them together and they'll hold; isolate one and it runs" | "That sniper took him for good" |
+
+Breaking is fast and cheap, and it bleeds Resolve. Killing is slow, needs Lethal units, and
+removes the card permanently. Flanking isn't just extra Shock: it breaks up formations, so the
+units it hits stop recovering.
+
 ## 3. Factions
 
 | Faction | Rules | What it wants on the line |
 |---|---|---|
-| **Concord Vanguard** | **Shoulder to Shoulder:** a Front unit with an allied Front unit beside it strikes +1. Officers buff the units around them. | An unbroken line. It punishes gaps. |
-| **Vhorr Brood** | **Flood:** a Brood unit In Breach flanks for +2. **Synapse:** Brood around a Synapse are Fearless. **Evolve:** +1 Power on striking (max +3). | Pour into gaps and surround. |
+| **Concord Vanguard** | **Drilled:** regains up to +3 Nerve per round from cohesion. **Shoulder to Shoulder:** a Front unit with allies on both sides strikes +1. Officers buff the units around them. | An unbroken line that refuses to break. |
+| **Vhorr Brood** | **Regrowth:** units linked to a Synapse heal 1 wound per round. **Flood:** a Brood unit In Breach flanks for +2. **Synapse:** Brood around a Synapse are Fearless. **Evolve:** +1 Power on striking (max +3). | Pour into gaps and surround. |
 | **The Hush** | **Cloak:** ranged units can't target it, and their shots fall through to the unit behind. Being struck reveals it. **Ambush:** its first strike from cloak is +1. **Phantoms:** when struck they pop and Shock the striker. They hold a column for a round and cost no Resolve. | Fake gaps, fake walls, knives from nowhere. |
 
 ## 4. Keywords (column terms)

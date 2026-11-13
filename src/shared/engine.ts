@@ -15,7 +15,7 @@ import { CARD_BY_ID, CardDef, Faction, Keyword, isTactic, rangeOf, starterDeck }
 // ───────────────────────── tunables ─────────────────────────
 export const RULES = {
   maxRounds: 8,
-  startResolve: 12,
+  startResolve: 14,
   handStart: 5,
   handMax: 8,
   drawPerRound: 2,
@@ -31,6 +31,7 @@ export const RULES = {
   breachFromRound: 2,
   evolveMax: 3,
   terrainColumns: 2,
+  cohesionMax: 2,      // Nerve regained per round from allies around a unit
 };
 export const cpForRound = (round: number) => Math.min(round + 1, RULES.cpCap);
 
@@ -110,6 +111,7 @@ export type GameEvent =
   | { t: 'destroy'; fid: number; pos: Pos }
   | { t: 'reveal'; fid: number; pos: Pos }
   | { t: 'evolve'; fid: number; pos: Pos }
+  | { t: 'rally'; fid: number; pos: Pos; amount: number }
   | { t: 'resolve'; player: PlayerId; delta: number; reason: string }
   | { t: 'round'; round: number };
 
@@ -232,7 +234,8 @@ export const isFearless = (s: GameState, f: Formation) => has(f, 'fearless') || 
 /** Concord: a Front unit with an allied Front unit beside it. */
 export function shoulderToShoulder(s: GameState, f: Formation): boolean {
   if (faction(s, f) !== 'concord' || !isFront(f)) return false;
-  return beside(f.pos).some((p) => formationAt(s, p)?.owner === f.owner);
+  const b = beside(f.pos);
+  return b.length === 2 && b.every((p) => formationAt(s, p)?.owner === f.owner);
 }
 
 /** Front units with no enemy at all in their column. */
@@ -434,7 +437,10 @@ function fallout(s: GameState) {
         s.stats.breaks[f.owner]++;
         s.events.push({ t: 'break', fid: f.fid, pos: f.pos });
         if (!decoy) loseResolve(s, f.owner, real.length, `${leadDef(f).name} broke`, 'morale');
-        for (const c of real) pl.discard.push(c.id);
+        // Routed, not dead: the top card falls back to hand to be rallied later.
+        const top = real[real.length - 1];
+        if (top && !decoy) { top.dmg = 0; top.grow = 0; if (pl.hand.length < RULES.handMax) pl.hand.push(top); else pl.discard.push(top.id); }
+        for (const c of real) if (c !== top || decoy) pl.discard.push(c.id);
       } else s.events.push({ t: 'destroy', fid: f.fid, pos: f.pos });
       s.log.push(`#${f.fid} (P${f.owner}) ${f.cards.length ? 'breaks' : 'is wiped out'}`);
       if (decoy) continue;
@@ -640,7 +646,7 @@ function upkeep(s: GameState) {
     if (has(f, 'hatch')) {
       const kids = s.formations.filter((o) => o.owner === f.owner && o.cards.length && isToken(o) && lead(o).id === 'b_skitter').length;
       const c = emptyOwnCell(s, f.owner, f.pos);
-      if (kids < 3 && c) spawnToken(s, f.owner, c, 'b_skitter');
+      if (kids < 2 && c) spawnToken(s, f.owner, c, 'b_skitter');
     }
     if (has(f, 'shroud')) for (const o of allies(s, f)) o.cloaked = true;
     if (has(f, 'fade') && !f.cloaked && facing(s, f).length === 0) f.cloaked = true;
@@ -649,6 +655,16 @@ function upkeep(s: GameState) {
   }
   fallout(s);
   if (s.winner !== null) return;
+  // Cohesion: Nerve recovers from the allies around a unit (wounds never do).
+  for (const f of s.formations) {
+    if (!f.cards.length || has(f, 'decoy')) continue;
+    if (isLinked(s, f)) { heal(s, f, 1); continue; } // the hive regrows flesh instead
+    if (isFearless(s, f)) continue;
+    const gain = Math.min(RULES.cohesionMax + (faction(s, f) === 'concord' ? 1 : 0), allies(s, f).length); // Concord: Drilled
+    const before = f.morale;
+    f.morale = Math.min(maxNerve(f), f.morale + gain);
+    if (f.morale > before) s.events.push({ t: 'rally', fid: f.fid, pos: f.pos, amount: f.morale - before });
+  }
   // Breakthrough: a unit that was In Breach and still stands drains 1 Resolve (max 1 per side)
   if (s.round >= RULES.breachFromRound) {
     for (const p of [0, 1] as PlayerId[]) {
