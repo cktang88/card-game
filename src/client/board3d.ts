@@ -104,31 +104,43 @@ export function glyph(name: string): string {
 /** Wavering: at half Nerve or less. Purely a warning label; no rules attached. */
 const wavering = (f: Formation) => f.morale * 2 <= maxNerve(f);
 
+const BADGE = { pow: new Image(), nrv: new Image() };
+BADGE.pow.src = '/ui/badge_power.webp';
+BADGE.nrv.src = '/ui/badge_nerve.webp';
+export const badgesReady = () => BADGE.pow.complete && BADGE.nrv.complete && BADGE.pow.naturalWidth > 0;
+
 function labelCanvas(f: Formation, s: GameState, viewer: PlayerId): HTMLCanvasElement {
   const c = document.createElement('canvas');
-  c.width = 256; c.height = 96;
+  c.width = 256; c.height = 112;
   const g = c.getContext('2d')!;
   const unknown = f.cards[0]?.id === '?';
   const pw = unknown ? '?' : String(power(f));
   const fearless = !unknown && isFearless(s, f);
   const nv = unknown ? '?' : fearless ? '∞' : `${Math.max(0, f.morale)}`;
   if (!unknown && isHQ(f)) return c;
-  const box = (x: number, bg1: string, bg2: string, txt: string) => {
-    const gr = g.createLinearGradient(0, 8, 0, 64); gr.addColorStop(0, bg1); gr.addColorStop(1, bg2);
-    g.fillStyle = gr; g.beginPath(); g.roundRect(x, 8, 76, 56, 8); g.fill();
-    g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 3; g.stroke();
-    g.fillStyle = '#fff'; g.font = '700 44px Oswald, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(txt, x + 38, 38);
+  const num = (txt: string, x: number, y: number, fill: string, stroke: string) => {
+    g.font = '900 40px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.lineJoin = 'round'; g.lineWidth = 7; g.strokeStyle = stroke; g.strokeText(txt, x, y);
+    g.fillStyle = fill; g.fillText(txt, x, y);
   };
-  box(40, '#e07a2c', '#6d2c08', pw);
-  box(140, '#4a90d0', '#173b63', nv);
-  // stack pips
-  if (f.cards.length > 1) {
-    g.fillStyle = '#f2e0b0';
-    for (let i = 0; i < f.cards.length; i++) { g.beginPath(); g.arc(128 - (f.cards.length - 1) * 9 + i * 18, 82, 6, 0, Math.PI * 2); g.fill(); }
+  if (badgesReady()) {
+    g.drawImage(BADGE.pow, 34, 0, 86, 92);
+    g.drawImage(BADGE.nrv, 140, 0, 80, 86);
   }
-  if (!unknown && !fearless && wavering(f)) { g.fillStyle = '#ffb03a'; g.font = '700 20px Oswald'; g.textAlign = 'center'; g.fillText('WAVERING', 128, 84); }
-  void viewer; void maxNerve;
+  num(pw, 77, 42, '#fff1d6', '#2a0805');
+  num(nv, 180, 40, '#eaf0ff', '#0a1530');
+  if (f.cards.length > 1) {
+    for (let i = 0; i < f.cards.length; i++) {
+      const x = 128 - (f.cards.length - 1) * 11 + i * 22;
+      g.save(); g.translate(x, 100); g.rotate(Math.PI / 4);
+      g.fillStyle = '#f3d999'; g.strokeStyle = '#3a280c'; g.lineWidth = 2; g.fillRect(-6, -6, 12, 12); g.strokeRect(-6, -6, 12, 12);
+      g.restore();
+    }
+  } else if (!unknown && !fearless && wavering(f)) {
+    g.font = '700 19px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.lineWidth = 5; g.strokeStyle = '#000';
+    g.strokeText('WAVERING', 128, 100); g.fillStyle = '#ffb03a'; g.fillText('WAVERING', 128, 100);
+  }
+  void viewer;
   return c;
 }
 
@@ -309,7 +321,7 @@ export class Board3D {
     const ring = new THREE.Mesh(new THREE.RingGeometry(rad * 0.88, rad * 1.02, 6), new THREE.MeshBasicMaterial({ color: f.owner === viewer ? ME_COLOR : OPP_COLOR }));
     ring.rotation.x = -Math.PI / 2; ring.rotation.z = Math.PI / 2; ring.position.y = h + 0.01;
     const label = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false, transparent: true }));
-    label.scale.set(1.3, 0.49, 1); label.position.y = h + 0.75; label.renderOrder = 10;
+    label.scale.set(1.35, 0.59, 1); label.position.y = h + 0.75; label.renderOrder = 10;
     group.add(body, top, ring, label);
     this.root.add(group);
     const tk: Token = { fid: f.fid, group, body, top, label, ring, sig: '', pos: f.pos };
@@ -326,7 +338,7 @@ export class Board3D {
     tk.pos = f.pos;
     const id = lead(f)?.id ?? '?';
     const fac = s.players[f.owner].faction;
-    const sig = [id, power(f), f.morale, f.cards.length, f.cloaked, isFearless(s, f), lead(f)?.grow ?? 0].join('|');
+    const sig = [id, power(f), f.morale, f.cards.length, f.cloaked, isFearless(s, f), lead(f)?.grow ?? 0, badgesReady()].join('|');
     if (sig === tk.sig) return;
     tk.sig = sig;
     (tk.top.material as THREE.MeshStandardMaterial).map = tokenTexture(id, fac);

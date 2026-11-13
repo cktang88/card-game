@@ -21,7 +21,9 @@ function renderMenu() {
     const d = document.createElement('div');
     d.className = 'fcard' + (f === faction ? ' sel' : '');
     d.style.setProperty('--fc', info.color);
-    d.innerHTML = `<h4 style="color:${info.color}">${info.name}</h4><p>${info.blurb}</p>`;
+    d.classList.add('plate');
+    const hero = { concord: 'c_trooper', brood: 'b_ravager', hush: 'v_blade' }[f];
+    d.innerHTML = `<div class="fart" style="background-image:url(/art/${hero}.webp)"></div><div class="ftxt"><h4>${info.name}</h4><p>${info.blurb}</p></div>`;
     d.onclick = () => { faction = f; arch = undefined; renderMenu(); };
     fp.appendChild(d);
   }
@@ -108,10 +110,8 @@ function refresh() {
   const P = s.players[me], O = s.players[other(me)];
   $('me-name').textContent = `You · ${FACTION_INFO[P.faction].name}`;
   $('opp-name').textContent = `${FACTION_INFO[O.faction].name} · Enemy`;
-  $('me-res').style.width = `${Math.max(0, (100 * P.resolve) / RULES.startResolve)}%`;
-  $('opp-res').style.width = `${Math.max(0, (100 * O.resolve) / RULES.startResolve)}%`;
-  $('me-res-n').textContent = `Resolve ${P.resolve}`;
-  $('opp-res-n').textContent = `Resolve ${O.resolve}`;
+  setResolve('me-res', P.resolve);
+  setResolve('opp-res', O.resolve);
   $('round').textContent = `Round ${s.round}/${RULES.maxRounds}`;
   $('stakes').textContent = `Stakes ×${s.stakes}${s.pendingEscalations ? ' → ×' + s.stakes * 2 ** s.pendingEscalations : ''}${s.initiative === me ? ' · You have initiative' : ''}`;
   const spent = pending.reduce((a, d) => a + def(P.hand.find((h) => h.uid === d.uid)!).cost, 0);
@@ -128,6 +128,12 @@ function refresh() {
     : oppLocked ? 'The enemy has locked in their orders.'
     : selected !== null ? 'Click a highlighted hex to place it (or click the card again to cancel).'
     : 'Pick cards and place them touching your army. Arrows show what will happen. Then Lock In.';
+}
+
+function setResolve(id: string, n: number) {
+  const el = $(id);
+  const pips = Array.from({ length: RULES.startResolve }, (_, i) => `<span class="pip${i < n ? '' : ' lost'}"></span>`).join('');
+  el.innerHTML = `${pips}<span class="n" title="Resolve">${Math.max(0, n)}</span>`;
 }
 
 function renderHand(cpLeft: number) {
@@ -299,8 +305,8 @@ async function handleMinor(e: GameEvent, next: GameState, nameOf: (fid: number) 
     case 'resolve': {
       const who = e.player === me ? 'You' : 'Enemy';
       log(`${who}: ${e.delta} Resolve (${e.reason})`);
-      const id = e.player === me ? 'me-res-n' : 'opp-res-n';
-      const el = $(id); el.textContent = `${e.reason}  ${e.delta}`;
+      const st = state!; const pl = st.players[e.player];
+      void pl; setResolve(e.player === me ? 'me-res' : 'opp-res', (Number($(e.player === me ? 'me-res' : 'opp-res').querySelector('.n')?.textContent) || 0) + e.delta);
       break;
     }
     case 'round': banner(`ROUND ${e.round}`); await sleep(700); break;

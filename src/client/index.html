@@ -5,16 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Shatterline</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <div id="app">
     <!-- MENU -->
     <section id="menu" class="screen">
+      <div class="menu-bg"><div style="background-image:url(/art/c_trooper.webp)"></div><div style="background-image:url(/art/b_ravager.webp)"></div><div style="background-image:url(/art/v_blade.webp)"></div></div>
       <div class="menu-inner">
         <h1 class="logo">SHATTERLINE</h1>
-        <p class="tag">Break their will. Hold the line.</p>
+        <p class="tag-line">Break their will · Hold the line</p>
+        <div class="rule-orn"></div>
         <div class="pick">
           <h3>Choose your faction</h3>
           <div id="faction-pick" class="faction-pick"></div>
@@ -22,14 +24,14 @@
         </div>
         <div class="modes">
           <button id="btn-ai" class="btn primary">Play vs AI</button>
-          <button id="btn-host" class="btn">Host 1v1</button>
+          <button id="btn-host" class="btn">Host Duel</button>
           <div class="join">
             <input id="join-code" maxlength="5" placeholder="CODE" />
             <button id="btn-join" class="btn">Join</button>
           </div>
         </div>
         <p id="menu-status" class="status"></p>
-        <details class="howto">
+        <details class="howto plate">
           <summary>How to play</summary>
           <ul>
             <li>Each round both players secretly place cards, then reveal at the same time.</li>
@@ -48,16 +50,16 @@
     <section id="game" class="screen hidden">
       <div id="board"></div>
       <div id="topbar">
-        <div class="side me"><span class="fname" id="me-name"></span><div class="resolve"><div class="fill" id="me-res"></div><span id="me-res-n"></span></div></div>
+        <div class="side me"><span class="fname" id="me-name"></span><div class="resolve" id="me-res"></div></div>
         <div class="center">
           <div id="round">Round 1/8</div>
           <div id="stakes">Stakes ×1</div>
         </div>
-        <div class="side opp"><span class="fname" id="opp-name"></span><div class="resolve"><div class="fill" id="opp-res"></div><span id="opp-res-n"></span></div></div>
+        <div class="side opp"><span class="fname" id="opp-name"></span><div class="resolve" id="opp-res"></div></div>
       </div>
       <div id="banner"></div>
       <div id="hint"></div>
-      <div id="log"></div>
+      <div id="log" class="plate"></div>
       <div id="preview"></div>
       <div id="bottombar">
         <div id="cp"><span id="cp-n">2</span><small>Command</small></div>
@@ -68,7 +70,7 @@
           <button id="btn-retreat" class="btn ghost">Retreat</button>
         </div>
       </div>
-      <div id="gameover" class="hidden"><div class="box"><h2 id="go-title"></h2><p id="go-sub"></p><button id="btn-menu" class="btn primary">Back to menu</button></div></div>
+      <div id="gameover" class="hidden"><div class="box plate"><h2 id="go-title"></h2><p id="go-sub"></p><button id="btn-menu" class="btn primary">Back to menu</button></div></div>
     </section>
   </div>
   <script type="module" src="./main.ts"></script>
