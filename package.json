@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
     "@types/ws": "^8.18.2",
     "concurrently": "^10.0.7",
     "esbuild": "^0.28.2",
@@ -23,6 +24,7 @@
     "vite": "^8.3.8"
   },
   "dependencies": {
+    "three": "^0.187.0",
     "ws": "^8.23.0"
   }
 }
