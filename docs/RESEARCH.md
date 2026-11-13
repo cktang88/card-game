@@ -558,3 +558,37 @@ and assumes the opponent plays nothing.
   - Archetypes: 38–66%, about ±7% noise at this sample size.
   - Morale is 66% of Resolve lost.
   - Games run 7–8 rounds.
+
+## 13. Column hands (Battle Line inspiration) and board width (v0.6)
+
+**Feedback**
+- "I love Battle Line: forming poker hands, bluffing, betting. But I don't want a clone. Can synergies achieve the same thing? Higher hands should mean more strength, or more morale breaking."
+- "With the new morale rules, can we do a 7- or 9-wide board, so spreading the line balances against flanking?"
+
+**Battle Line's principle, kept without the mechanism**
+- What's kept: each flag is a contest of formations, the better formation wins, and you bluff about what you're building.
+- What isn't copied: no drafting, no numbered colour suits, no poker ranks.
+- **Column hands instead:**
+  - Rabble: 1 card.
+  - Squad: 2 or more cards.
+  - Kin: 2 or more of one class.
+  - Command: Kin plus a leader.
+- The higher hand holds the **Edge** (+1 strikes) in that column. Your deck's classes, stacking and Back-row placement build the hands. Hidden placement is the bluff, and Escalate is the bet.
+
+**Width experiment** (`npm run sim -- 40 --cols=N [--no-formations]`)
+
+| Width | Morale / breach / kills share of Resolve lost | Typical game end |
+|---|---|---|
+| 5 | 66–67% / 21–22% / 12% | rounds 7–8 |
+| 7 | 60% / 29% / 11% | rounds 6–7 |
+| 9 | 53–54% / 35% / 11% | round 6–7, and gaps dominate |
+
+**Choice: 7 columns.** You can't cover every column, so choosing where to leave gaps is a real trade-off against flank exposure, and morale still decides most games.
+
+**Balance passes on 7 columns**
+- **Formations favoured Hush.** Most Hush cards are Operatives, so Kin was free. Fix: cloaked units aren't in formation. This also keeps hands readable, since the opponent can't see cloaked cards.
+- **Brood: One Organism.** Swarms and Beasts count as one class.
+- **Concord lost 26–74 and 30–70 on the wide board.** Fix: **Hold the Line**, so Concord Front units can't be Flanked.
+- **Concord briefly had 4 faction rules.** Trimmed to two (Hold the Line + Drilled); Regiments and Shoulder to Shoulder were dropped.
+- **Thoughtstalk Warden cost 3 → 2.**
+- **Result:** archetypes 37–53%. Balanced decks: Concord 39, Brood 50, Hush 45.5. Morale 58–62% of Resolve lost, breaches about 30%.

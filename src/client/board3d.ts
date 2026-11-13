@@ -6,7 +6,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { CARD_BY_ID, FACTION_INFO, Faction } from '../shared/cards';
 import { ART } from './art-manifest';
 import {
-  Formation, GameEvent, GameState, PlayerId, Pos, allCells, key, isFearless, lead, leadDef, linkSource, maxNerve, power, Terrain,
+  COLS, HAND_NAMES, columnHand, Formation, GameEvent, GameState, PlayerId, Pos, allCells, key, isFearless, lead, leadDef, linkSource, maxNerve, power, Terrain,
 } from '../shared/engine';
 
 const R = 1;              // hex radius
@@ -21,7 +21,7 @@ const CELL = 1.75;            // column spacing
 const ROW_Z = [-3.05, -1.2, 1.2, 3.05];
 /** World x/z of a battle-line cell (kept the old name for minimal churn). */
 export function hexXZ(p: Pos): [number, number] {
-  return [(p.col - 2) * CELL, ROW_Z[p.row]];
+  return [(p.col - (COLS - 1) / 2) * CELL, ROW_Z[p.row]];
 }
 
 // ───────────────────────── shaders ─────────────────────────
@@ -249,7 +249,7 @@ export class Board3D {
     this.camera.aspect = w / h;
     // fit board: portrait screens need the camera further away
     const portrait = h > w;
-    const dist = portrait ? 19 + (h / w - 1) * 9 : 14.2;
+    const dist = portrait ? 25 + (h / w - 1) * 12 : 16.8;
     this.camera.position.set(0, dist * 0.92, dist * 0.62 + 1.5);
     this.camera.lookAt(0, 0, portrait ? 2.2 : 2.0);
     this.camera.updateProjectionMatrix();
@@ -296,19 +296,19 @@ export class Board3D {
       }
     }
     // the trench: no-man's-land between the two front rows
-    const trench = new THREE.Mesh(new THREE.BoxGeometry(CELL * 5 + 0.6, 0.06, 0.55), new THREE.MeshStandardMaterial({ color: '#1a1410', roughness: 1 }));
+    const trench = new THREE.Mesh(new THREE.BoxGeometry(CELL * COLS + 0.6, 0.06, 0.55), new THREE.MeshStandardMaterial({ color: '#1a1410', roughness: 1 }));
     trench.position.set(0, 0.03, 0); add(trench);
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < COLS * 2 - 1; i++) {
       const wire = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.012, 4, 10), new THREE.MeshStandardMaterial({ color: '#4a4038', metalness: 0.6, roughness: 0.5 }));
-      wire.position.set((i - 4) * 1.0, 0.16, 0); wire.rotation.y = Math.PI / 2; add(wire);
+      wire.position.set((i - (COLS - 1)) * CELL / 2, 0.16, 0); wire.rotation.y = Math.PI / 2; add(wire);
     }
     // terrain labels at both ends of each special column
-    for (let c = 0; c < 5; c++) {
+    for (let c = 0; c < COLS; c++) {
       const t = s.terrain[c];
       if (t === 'open') continue;
       for (const z of [this.seat === 0 ? 4.25 : -4.25]) {
         const lbl = textSprite(t === 'ridge' ? 'RIDGE  +1' : 'RUINS  −1 RANGED', t === 'ridge' ? '#f3d999' : '#c9b9a0');
-        lbl.position.set((c - 2) * CELL, 0.25, z); add(lbl);
+        lbl.position.set((c - (COLS - 1) / 2) * CELL, 0.25, z); add(lbl);
       }
     }
   }
@@ -327,6 +327,25 @@ export class Board3D {
     }
     for (const [fid, tk] of this.tokens) if (!seen.has(fid)) { this.root.remove(tk.group); this.tokens.delete(fid); }
     this.drawLinks(s);
+    this.drawHands(s);
+  }
+
+  private hands = new THREE.Group();
+  /** Column hand names along the trench (yours on your side, theirs on theirs). */
+  private drawHands(s: GameState) {
+    if (!this.hands.parent) this.root.add(this.hands);
+    this.hands.clear();
+    for (let c = 0; c < COLS; c++) {
+      for (const p of [0, 1] as PlayerId[]) {
+        const h = columnHand(s, p, c);
+        if (!h.rank) continue;
+        const lbl = textSprite(HAND_NAMES[h.rank].toUpperCase(), p === this.seat ? '#f3d999' : '#ff9a85');
+        lbl.scale.set(1.5, 0.19, 1);
+        const [x] = hexXZ({ col: c, row: 0 });
+        lbl.position.set(x, 0.42, p === 0 ? 0.2 : -0.2);
+        this.hands.add(lbl);
+      }
+    }
   }
 
   private makeToken(f: Formation, s: GameState, viewer: PlayerId): Token {
@@ -452,6 +471,15 @@ export class Board3D {
         l.computeLineDistances();
         this.overlays.add(l);
         this.overlays.add(arrowHead(new THREE.Vector3(x0, 0.12 + this.topY(e.from), z0), new THREE.Vector3(x1, this.topY(e.to) + 0.12, z1), ownerOf(e.fid) === viewer ? '#f3d38a' : '#ff8a7a', 0.18));
+      } else if (e.t === 'edge') {
+        const [x] = hexXZ({ col: e.col, row: 0 });
+        const mine = e.owner === viewer;
+        const strip = new THREE.Mesh(new THREE.PlaneGeometry(CELL * 0.86, 0.5), new THREE.MeshBasicMaterial({ color: mine ? '#ffcf6a' : '#ff5a40', transparent: true, opacity: 0.55, depthWrite: false }));
+        strip.rotation.x = -Math.PI / 2; strip.position.set(x, 0.08, 0);
+        this.overlays.add(strip);
+        const lbl = textSprite('EDGE +1', mine ? '#ffe39a' : '#ff8a6a');
+        lbl.scale.set(1.3, 0.17, 1); lbl.position.set(x, 0.7, 0);
+        this.overlays.add(lbl);
       } else if (e.t === 'breach') {
         // gold chevrons charging into the empty enemy column
         const [x, z] = hexXZ(e.pos);

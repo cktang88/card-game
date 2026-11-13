@@ -190,7 +190,7 @@ function drawOverlays() {
       const owner = (fid: number) => state!.formations.find((f) => f.fid === fid)?.owner ?? sim.formations.find((f) => f.fid === fid)?.owner;
       const seen = new Set<number>();
       const evs = sim.events.filter((e) => {
-        if (e.t === 'strike' || e.t === 'breach' || e.t === 'flank') return true;
+        if (e.t === 'strike' || e.t === 'breach' || e.t === 'flank' || e.t === 'edge') return true;
         if (e.t === 'move' && !seen.has(e.fid)) { seen.add(e.fid); return true; }
         return false;
       });
@@ -318,6 +318,7 @@ async function handleMinor(e: GameEvent, next: GameState, nameOf: (fid: number) 
     }
     case 'breach': board.float(e.pos, 'BREACH!', '#ffd27a'); log(`${e.owner === me ? 'You break' : 'Enemy breaks'} through in column ${e.pos.col + 1}`); break;
     case 'flank': board.float(e.pos, `FLANKED +${e.amount}`, '#ff7a5a'); break;
+    case 'edge': log(`${e.owner === me ? 'You hold' : 'Enemy holds'} the Edge in column ${e.col + 1}`); break;
     case 'heal': board.float(e.pos, `+${e.amount} ♥`, '#7aff8a'); break;
     case 'tactic': board.float(e.pos, CARD_BY_ID[e.id].name, '#ffe9b0'); board.burst(e.pos, '#fff0c0', 18); log(`${e.owner === me ? 'You' : 'Enemy'} played ${CARD_BY_ID[e.id].name}`); await sleep(350); break;
     case 'move': await board.animateMove(e.fid, e.to); break;

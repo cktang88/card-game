@@ -1,7 +1,7 @@
-# SHATTERLINE: Game Design (v0.4, the Battle Line)
+# SHATTERLINE: Game Design (v0.6, the Battle Line)
 
 > A casual-to-learn, obviously skill-based sci-fi card game about **breaking the enemy's
-> will**. Two armies face each other across a five-column battle line. Both players place
+> will**. Two armies face each other across a seven-column battle line. Both players place
 > cards hidden and at the same time; everything then resolves on its own. **Gaps in a line
 > are the whole game:** an empty column is a breach, a breach flanks the enemies beside it,
 > and a unit flanked from both sides is surrounded.
@@ -24,8 +24,8 @@
 ## 2. The complete rules
 
 **Board**
-- 5 columns. Each player has a **Front** row and a **Back** row (20 cells). A trench runs between the two Front rows.
-- Two random columns get terrain:
+- **7 columns.** Each player has a **Front** row and a **Back** row (28 cells). A trench runs between the two Front rows.
+- About width ÷ 2.5 random columns (3 on a 7-wide board) get terrain:
   - **Ridge:** units there strike +1.
   - **Ruins:** ranged strikes *into* that column are −1.
 
@@ -44,6 +44,15 @@
    - A Front unit with **no enemy anywhere in its column** is **In Breach**. It does not strike this round.
    - Each enemy Front unit in a **neighbouring column** of a breach is **Flanked**: +1 Shock on every strike it takes this round. Flanked from both sides means **Surrounded**: +2.
    - The board edge never counts as a breach.
+4b. **Edge (column hands):**
+   - Your visible cards in a column, Front plus Back plus any stacked cards, form a hand:
+     - **Rabble:** 1 card.
+     - **Squad:** 2 or more cards.
+     - **Kin:** 2 or more non-leaders, all of one class.
+     - **Command:** Kin plus a leader (an Officer, Synapse or Psion).
+   - In each column both sides contest, the higher hand holds the **Edge**: its strikes in that column are **+1**. A tie goes to the higher total cost; if that also ties, nobody holds it.
+   - Cloaked units aren't in formation.
+   - This is Battle Line's idea that the better formation wins the flag, done through deck synergies instead of drafting.
 5. **Strike:** every unit strikes once, all at the same time, at its **single target**:
    - **Front unit:** the enemy Front unit in its column. If that cell is empty, it hits the enemy Back unit **from behind (+1 rear strike)**.
    - **Ranged unit in the Back:** fires over its own line at the same target.
@@ -86,8 +95,8 @@ units it hits stop recovering.
 
 | Faction | Rules | What it wants on the line |
 |---|---|---|
-| **Concord Vanguard** | **Drilled:** regains up to +3 Nerve per round from cohesion. **Shoulder to Shoulder:** a Front unit with allies on both sides strikes +1. Officers buff the units around them. | An unbroken line that refuses to break. |
-| **Vhorr Brood** | **Regrowth:** units linked to a Synapse heal 1 wound per round. **Flood:** a Brood unit In Breach flanks for +2. **Synapse:** Brood around a Synapse are Fearless. **Evolve:** +1 Power on striking (max +3). | Pour into gaps and surround. |
+| **Concord Vanguard** | **Hold the Line:** Front units can't be Flanked. **Drilled:** regains up to +3 Nerve per round from cohesion. | An unbroken line that refuses to fold or break. |
+| **Vhorr Brood** | **One Organism:** Swarms and Beasts count as one class for hands. **Regrowth:** units linked to a Synapse heal 1 wound per round. **Flood:** a Brood unit In Breach flanks for +2. **Synapse:** Brood around a Synapse are Fearless. **Evolve:** +1 Power on striking (max +3). | Pour into gaps and surround. |
 | **The Hush** | **Cloak:** ranged units can't target it, and their shots fall through to the unit behind. Being struck reveals it. **Ambush:** its first strike from cloak is +1. **Phantoms:** when struck they pop and Shock the striker. They hold a column for a round and cost no Resolve. | Fake gaps, fake walls, knives from nowhere. |
 
 ## 4. Keywords (column terms)
