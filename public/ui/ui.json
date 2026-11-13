@@ -1,0 +1,35 @@
+{
+ "frame_concord": {
+  "window": [
+   9.38,
+   6.18,
+   9.38,
+   11.78
+  ]
+ },
+ "frame_brood": {
+  "window": [
+   7.52,
+   5.27,
+   7.52,
+   11.07
+  ]
+ },
+ "frame_hush": {
+  "window": [
+   8.5,
+   5.21,
+   8.5,
+   11.13
+  ]
+ },
+ "badge_cost": {
+  "aspect": 0.996
+ },
+ "badge_power": {
+  "aspect": 0.934
+ },
+ "badge_nerve": {
+  "aspect": 0.926
+ }
+}

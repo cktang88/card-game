@@ -12,7 +12,8 @@
     "sim": "tsx src/sim/run.ts",
     "typecheck": "tsc --noEmit",
     "art": "tsx scripts/gen-art.ts",
-    "cards": "tsx scripts/card-doc.ts"
+    "cards": "tsx scripts/card-doc.ts",
+    "ui": "tsx scripts/gen-ui.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
