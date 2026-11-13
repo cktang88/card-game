@@ -152,3 +152,29 @@ No copyrighted reference images were downloaded or used as inputs.
   4. Structures and vehicles need "sole dominant central subject".
   5. Specify the enemy humans' faction so the world stays coherent.
 - **Delivery:** approved images ship as 768px WebP in `public/art/` (5 MB total). Full-resolution PNG drafts and prompts are kept in `art-drafts/`.
+
+## ui1: card frames and stat badges (UI art)
+- **Why:** the first client UI looked like a generic SaaS dashboard (rounded pills, flat gradient stat boxes) and clashed with the oil-painted art.
+- **Method:**
+  - Generated with `scripts/gen-ui.ts`, using `gpt-image-2.6-sunburst` and the same painted style.
+  - Every empty area was requested as flat chroma-key green (#00FF00).
+  - `scripts/process-ui.py` keys the green out to alpha, with soft edges and despill. It crops the badges and measures each frame's transparent window (`public/ui/ui.json`) so card art fits it exactly.
+- **Cost:** about $0.19 for 6 images. All six were approved on the first pass:
+
+  | Item | Look |
+  |---|---|
+  | `frame_concord` | Riveted gunmetal, brass trim, olive enamel, red hazard chevrons |
+  | `frame_brood` | Black-oil chitin with fungal gills and coral, spore-sac corners |
+  | `frame_hush` | Obsidian and teal lacquer, cracked porcelain inlays with violet kintsugi seams |
+  | `badge_cost` | Brass command medallion (Cost, and the Command counter) |
+  | `badge_power` | Blood-red iron shield with crossed blades (Power) |
+  | `badge_nerve` | Cobalt swallow-tailed war banner with a skull finial (Nerve) |
+
+- **Applied:**
+  - Card layout: art clipped to the window; Cost on the medallion; Power and Nerve on the shield and banner.
+  - The same badges on the 3D token labels.
+  - Type: Cinzel and Spectral.
+  - Chamfered, riveted-iron plates and buttons.
+  - Resolve as banner pips.
+  - Menu over a painted triptych.
+  - Painted dirt ground texture on the board.
