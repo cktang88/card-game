@@ -60,19 +60,24 @@ Human colonial militia from a poor, industrial frontier world.
 - **Mood:** stoic, disciplined, desperate and heroic. Poster-like low angles and diagonal
   searchlight rays.
 
-### Vhorr Brood: "Swarm & evolve"
-A bio-swarm, one organism in many bodies.
-- **Anatomy:** wet **black-oil chitin** with an iridescent sheen, **overgrown with fungal gills and
-  coral-like growths in flesh-pink**, the same growth pattern on every creature. **Bile-green
-  glowing spore sacs and veins**, clusters of small glossy black eyes, **dark hooked glass-like spurs
-  and mandibles** (no bone-white scythes). This motif was chosen in the pilot so the swarm doesn't read as Tyranids or Zerg.
-- **Synapse creatures:** swollen translucent craniums glowing green, linked to the others
-  by faint green psychic threads.
-- **Environment:** organic creep of purple veins over cracked earth, spore mist, dripping ichor.
-- **Light & palette:** sickly green under-light and back-light; purple, black,
-  flesh-pink, with bile-green as the only accent.
-- **Mood:** overwhelming, predatory, humid. Asymmetric silhouettes with many limbs and no
-  straight lines.
+### Vhorr Brood: "Swarm & evolve" (v2, redesigned)
+A sleek alien apex-predator swarm: **beautiful and lethal, never gross.** The v1 fungal-coral look
+read as disease ("cancer coral"), so it was replaced. See ART_LOG `brood2`.
+- **Anatomy:** glossy hard **jewel-beetle carapace**, iridescent black with a deep green sheen,
+  made of a few **large smooth armour plates** with clean edges. Thin **venom-green glowing seams**
+  and clusters of glowing green eyes. **Blade-like forelimbs** and sharp elegant spines.
+  Anatomy borrows from the mantis, wasp, panther and serpent.
+- **Design rules** (from creature-design research):
+  - **Silhouette first:** the creature must be identifiable from its outline in one second.
+  - **Shape language:** sharp, triangular, sleek forms that read as dangerous.
+  - **Function drives form:** blades, plates, hunting anatomy.
+  - **Minimal surface detail:** no slime, fungus, coral, flesh, gore or tumours.
+- **Separation:** the dark glossy creature is rim-lit pale green-white and stands out against a
+  lighter, hazy, softly out-of-focus alien dusk of misty spires.
+- **Palette:** black-green with steel-grey haze; venom green is the only accent.
+  **Mood:** predatory, fast, elegant, terrifying.
+- **Avoid** the xenomorph "smooth elongated banana head" and the Tyranid purple-with-bone-scythes look.
+  Keep heads crested, mandibled or insectoid.
 
 ### The Hush: "Unseen"
 A secretive, ritualised stealth culture.

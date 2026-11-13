@@ -20,7 +20,7 @@ export const STYLE = 'Traditional oil painting on textured canvas, thick impasto
 export const NEGATIVE = 'No text, no letters, no numbers, no logos, no watermark, no signature, no card frame or border, no UI, no multiple panels, no cropped heads, no cartoon or anime style, no photographic realism, no 3D render look, no real-world flags or insignia.';
 export const BIBLE: Record<Faction, string> = {
   concord: 'Faction look (human colonial militia): olive-drab wool greatcoats over dented gunmetal chest plates, deep brimmed steel helmets with one red signal stripe down the crown, round brass-rimmed rebreather masks with corrugated hoses, red cloth armbands, cream stenciled unit numbers; long bolt-action rail-rifles with brass coils; vehicles of riveted olive plate with cream stencils and red chevrons, smokestacks, searchlights. Low sodium-orange light, dusty haze. Palette olive, rust, khaki, cream; signal red is the only accent. Mood stoic, desperate, heroic, poster-like low angle.',
-  brood: 'Faction look (alien bio-swarm, one organism in many bodies): wet black-oil chitin with an iridescent sheen, overgrown with fungal gills and coral-like growths in flesh-pink, glowing bile-green spore sacs and veins, clusters of small glossy black eyes, dark hooked glass-like spurs and mandibles instead of bone, drifting green spores; every creature shares the same fungal-coral growth pattern. Ground of cracked earth covered in pink fungal creep. Sickly green under-light. Palette oil-black, flesh-pink, grey; bile green is the only accent. Mood overwhelming, predatory, humid; asymmetric many-limbed silhouettes, no straight lines.',
+  brood: 'Faction look (sleek alien apex-predator swarm, beautiful and lethal, NOT gross): glossy hard jewel-beetle carapace, iridescent black with deep green sheen, made of a few large smooth armour plates with clean edges, thin venom-green glowing seams between plates and clusters of glowing venom-green eyes, blade-like forelimbs and sharp elegant spines; anatomy of mantis, wasp, panther and serpent; strong simple sculptural forms, minimal surface detail, no slime, no fungus, no coral, no flesh, no gore, no tumours. Strong foreground-background separation: the dark glossy creature is sharply rim-lit in pale green-white and stands out against a lighter, hazy, softly out-of-focus alien dusk background of misty spires. Palette black-green, steel grey haze; venom green is the only accent. Mood predatory, fast, elegant, terrifying.',
   hush: 'Faction look (secretive ritual stealth culture): layered dark-teal wrap cloaks and hoods, smooth expressionless porcelain-white masks with thin violet-glowing eye slits and a glowing violet kintsugi-style repaired crack running across every mask, no visible skin; black glass and obsidian devices with thin violet light-lines, curved black-glass blades; figures half-dissolving into shadow or with doubled after-images. Cool moonlight, heavy ground fog. Palette teal, ink black, slate; violet glow is the only accent. Mood uncanny, quiet; mostly shadow with thin rim light.',
 };
 
@@ -31,12 +31,18 @@ async function gen(id: string) {
   const d = CARD_BY_ID[id];
   if (!d) throw new Error('unknown card ' + id);
   const prompt = `${d.art}. ${BIBLE[d.faction]} ${STYLE} ${NEGATIVE}`;
-  const res = await fetch('https://openrouter.ai/api/v1/images', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, prompt, size: '1024x1536', n: 1 }),
-  });
-  const j = await res.json() as { data?: { b64_json: string }[]; usage?: { cost?: number }; error?: unknown };
+  let res: Response, j: { data?: { b64_json: string }[]; usage?: { cost?: number }; error?: unknown };
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch('https://openrouter.ai/api/v1/images', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, prompt, size: '1024x1536', n: 1 }),
+    });
+    j = await res.json();
+    // low balance: OpenRouter reserves credit per in-flight request; wait for the last one to settle
+    if (res.status === 402 && JSON.stringify(j).includes('in_flight') && attempt < 6) { await new Promise((r) => setTimeout(r, 15000)); continue; }
+    break;
+  }
   if (!res.ok || !j.data?.[0]) throw new Error(`${id}: ${res.status} ${JSON.stringify(j.error ?? j).slice(0, 300)}`);
   writeFileSync(`${outDir}/${id}.png`, Buffer.from(j.data[0].b64_json, 'base64'));
   writeFileSync(`${outDir}/${id}.prompt.txt`, `model: ${model}\n\n${prompt}\n`);

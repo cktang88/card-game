@@ -19,7 +19,7 @@ const BADGE = (look: string) => `A single game UI badge centered in the frame, o
 
 const ITEMS: Record<string, { prompt: string; size: string }> = {
   frame_concord: { size: '1024x1536', prompt: FRAME('riveted gunmetal and blackened steel plates with brass trim and rivets, olive-drab enamel panels, chipped red signal-stripe chevrons at the corners, stencil-scratched, oil and soot stains, industrial war-machine aesthetic.') },
-  frame_brood: { size: '1024x1536', prompt: FRAME('organic alien border grown from wet black-oil iridescent chitin plates, overgrown with flesh-pink fungal gills and coral-like growths, small glowing bile-green spore sacs at the corners, dark hooked glass-like spurs, slimy and asymmetric yet still a clean rectangular frame.') },
+  frame_brood: { size: '1024x1536', prompt: FRAME('sleek alien border made of glossy iridescent black-green beetle-carapace plates with clean sharp edges, thin glowing venom-green seams between the plates, elegant curved blade-like spines at the corners, polished and sculptural, minimal fine detail, no slime, no fungus.') },
   frame_hush: { size: '1024x1536', prompt: FRAME('smooth black obsidian and dark-teal lacquer border with cracked white porcelain inlays repaired with thin glowing violet kintsugi seams, subtle violet light-lines, elegant, quiet, ritualistic.') },
   badge_cost: { size: '1024x1024', prompt: BADGE('A round heavy brass-and-bronze command medallion coin with an engraved, notched rim and tiny rivets, warm gold highlights, aged patina.') },
   badge_power: { size: '1024x1024', prompt: BADGE('A heater-shaped iron battle shield badge with a riveted steel rim, crossed sword blades engraved behind it, the center plate deep blood-red enamel, chipped and scarred.') },

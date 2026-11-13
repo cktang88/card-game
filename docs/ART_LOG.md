@@ -178,3 +178,31 @@ No copyrighted reference images were downloaded or used as inputs.
   - Resolve as banner pips.
   - Menu over a painted triptych.
   - Painted dirt ground texture on the board.
+
+## brood2: full Brood redesign (16 cards + frame)
+- **Feedback:** the fungal-coral Brood "look disgusting… like cancer coral". They should look *cool*, with less fine detail and more foreground/background separation.
+- **Research** (creature-design principles):
+  - **Silhouette first:** identifiable from the outline in one second.
+  - **Shape language:** sharp triangles read as dangerous; lumpy organic forms read as disease.
+  - **Function drives form:** plates and blades imply a predator.
+  - **Thumbnail with shapes before detail.**
+  - The cool-alien canon (biomechanical xenos, insectoid armour, Monster Hunter-style grounded animal anatomy) shares glossy hard plates, big simple shapes, predatory anatomy and a glowing accent.
+- **Sources:**
+  - https://creativebloq.com/how-to/16-ways-to-draw-better-creatures
+  - https://www.creativebloq.com/features/15-tips-for-better-creature-design
+  - https://ccs.thegnomonworkshop.com/workshops/introduction-to-creature-design-volume-1
+  - https://skillselion.com/skills/omer-metin/skills-for-antigravity/creature-design
+- **New bible (v2):**
+  - Body: glossy jewel-beetle carapace (black-green iridescent) made of a few large smooth plates, with venom-green glowing seams and eyes.
+  - Anatomy: mantis, wasp, panther and serpent.
+  - Detail: minimal surface detail, explicitly "NOT gross".
+  - Separation: the creature is rim-lit against a lighter, hazy, out-of-focus background.
+  - Every Brood subject was rewritten in the same terms (no fleshy, dripping or fungal wording).
+- **Pilot (sunburst):** Ravager, Skitterling and Warden were all approved immediately. Sleek, readable silhouettes with clean separation. A night-and-day improvement.
+- **Batch (sunburst):** Pod (seed-spire), Mimics (stolen helmets), Pack (side-view hounds), Grub, Lashworm, Gorgemaw, Leech and Pheromone were all approved. The new `frame_brood` (glossy beetle plates, green seams) was also approved.
+- **Credits:** the OpenRouter balance fell to about $1.1. OpenRouter then refused sunburst requests because their *maximum* cost exceeded the balance (`weight_exceeds_budget`), and earlier `in_flight_budget_exhausted` errors were resolved with a wait-and-retry.
+- **Fallback (`gpt-image-1-mini`, $0.051 each):**
+  - Spitter, Howler, Overmind, Scream and Brood Heart were approved **provisionally**. They are flatter and darker, with less painterly texture, and some drift toward a xenomorph-like elongated head.
+  - Brood Heart needed a retry. Mini ignored "no creatures", so a creature still stands in front of the citadel.
+
+**TODO when credits are topped up:** redo b_spitter, b_howler, b_overseer, b_scream and b_hq on `gpt-image-2.6-sunburst`, using the subjects already in `cards.ts`.
