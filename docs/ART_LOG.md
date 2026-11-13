@@ -82,3 +82,19 @@ No copyrighted reference images were downloaded or used as inputs.
 - Humans appearing in Brood or Hush art are specified as Concord soldiers, for world coherence.
 - The Faceless mask was changed from "chrome" to porcelain with kintsugi seams, per the Hush bible.
 - Hush risks sameness (hooded figures). Their subjects deliberately vary: a device, a vehicle, close portraits, an empty-darkness scene, an enemy point of view.
+
+## concord: the remaining 12 Concord cards + 4 redos
+- **Cost:** about $0.57.
+- **Civilisation consistency:** excellent. Helmet stripes, armbands, rebreathers and chevrons appear on every card.
+- **Approved first pass:**
+  - Riflemen (kneeling volley)
+  - Colour Sergeant (planted standard)
+  - Widow Varn (prone sniper on a gantry)
+  - Mortar crew
+  - Hammerfall Battery
+  - Ram-Track
+  - Siege-Crawler
+  - Command Bunker
+- **Failed for sameness:** Loudhorn Broadcast, Mole Brigade Sappers, Iron Shieldwall and Over the Top! all came out as the same "single gas-masked trooper standing with a rifle". The faction bible plus "heroic subject" pulls the model toward that.
+- **Fix (per-card, global prompt unchanged):** subjects that state the action, the camera angle, and that nobody stands still. The redos show a towering loudspeaker mast from below, sappers digging at ground level, a shield wall head-on taking fire, and a ladder scramble seen from inside the trench. All four were approved.
+- **Learning:** for infantry factions, write subjects as *actions plus camera angle*, not "a squad of X".
