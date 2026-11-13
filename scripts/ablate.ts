@@ -14,6 +14,10 @@ const extra = argv.filter((a) => a.startsWith('--rule=') || a.startsWith('--cols
 
 export const VARIANTS: [string, string[]][] = [
   ['baseline', []],
+  ['+ fresh nerve (threshold morale)', ['--rule=freshNerve=true']],
+  ['+ fresh nerve + panic 2', ['--rule=freshNerve=true', '--rule=panic=2']],
+  ['+ fresh nerve + panic 2 + quiet kills', ['--rule=freshNerve=true', '--rule=panic=2', '--rule=quietKills=true']],
+  ['+ panic 2', ['--rule=panic=2']],
   ['+ stake doubler', ['--rule=laneStake=1']],
   ['+ stake bet ±1', ['--rule=laneStake=2']],
   ['+ stake transfer', ['--rule=laneStake=3']],

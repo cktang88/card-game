@@ -35,6 +35,9 @@ export const RULES = {
   drilled: 0,           // cut in v0.7 (#17)
   formations: false,    // column hands / Edge cut in v0.7 (#17)
   edge: 1,              // strike bonus in a column where you hold the Edge
+  panic: 1,             // Shock a rout deals to the friendly units around it
+  quietKills: false,    // units wiped out (not routed) cause no panic
+  freshNerve: false,    // morale as a threshold: every unit's Nerve resets each round (no Shock carried over)
   laneStake: 0,         // secret per-column Stake. 0 off · 1 doubler (losses there ×2, REJECTED #19) · 2 bet (win the column +1 Resolve, lose it −1) · 3 transfer (win it: enemy −1; lose it: you −1)
   underdogCp: 0,        // extra Command next round for the player behind on Resolve by ≥ 3
 };
@@ -488,7 +491,8 @@ function fallout(s: GameState) {
       } else s.events.push({ t: 'destroy', fid: f.fid, pos: f.pos });
       s.log.push(`#${f.fid} (P${f.owner}) ${f.cards.length ? 'breaks' : 'is wiped out'}`);
       if (decoy) continue;
-      for (const q of around(f.pos)) { const o = formationAt(s, q); if (o && o.owner === f.owner) shock(s, o, 1, { ignoreAuras: true }); }
+      if (!f.cards.length && RULES.quietKills) continue; // wiped out: no one saw them run
+      for (const q of around(f.pos)) { const o = formationAt(s, q); if (o && o.owner === f.owner) shock(s, o, RULES.panic, { ignoreAuras: true }); }
       if (burst) {
         spawnToken(s, f.owner, f.pos, 'b_skitter');
         const c = emptyAroundOwn(s, f.pos)[0]; if (c) spawnToken(s, f.owner, c, 'b_skitter');
@@ -723,6 +727,7 @@ function upkeep(s: GameState) {
   }
   fallout(s);
   if (s.winner !== null) return;
+  if (RULES.freshNerve) for (const f of s.formations) if (f.cards.length && !has(f, 'decoy') && f.morale > 0) f.morale = maxNerve(f);
   // Cohesion: Nerve recovers from the allies around a unit (wounds never do).
   for (const f of s.formations) {
     if (!f.cards.length || has(f, 'decoy')) continue;

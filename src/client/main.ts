@@ -134,7 +134,7 @@ function refresh() {
   $('hint').textContent = locked ? 'Orders locked. Waiting for the enemy…'
     : oppLocked ? 'The enemy has locked in their orders.'
     : selected !== null ? 'Click a highlighted hex to place it (or click the card again to cancel).'
-    : 'Place cards on your Front or Back row. An empty enemy column is a breach. Arrows show what will happen. Then Lock In.';
+    : 'Place cards on your Front or Back row. Arrows show what will happen. Then Lock In.';
 }
 
 function setResolve(id: string, n: number) {

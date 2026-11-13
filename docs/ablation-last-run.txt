@@ -1,1 +1,1 @@
-+ stake transfer           skill   91%  leadΔ 0.63  decided R4.6  close   39%  obvious   17%  comeback   26%  collapse   94%  len 6.1  morale   55%  margin 3.2  faction spread   29%
++ panic 2                  skill   89%  leadΔ 0.80  decided R5.6  close   39%  obvious   19%  comeback   36%  collapse   82%  len 7.1  morale   82%  margin 2.5  faction spread   26%

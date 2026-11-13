@@ -167,3 +167,15 @@ Kept as `RULES.laneStake` (0 = off) for later human tests.
 raises what the *match result* is worth, not the board. In-game bot metrics can't detect a bluff on the stakes.
 Restored (maxStakes 8). **The gamble pillar can only be judged by human playtest** (DESIGN_PROCESS §6). Other cuts stand,
 since those rules act on the board and were measured there.
+
+## 21. Threshold morale ("morale ≠ health" fix from the pitches). Bots say no; humans decide
+| Variant on v0.7 | skill | lead changes | decided | comeback | collapse | morale |
+|---|---|---|---|---|---|---|
+| baseline (Shock accumulates) | 93 | 0.78 | R5.7 | 37 | 80% | 81 |
+| fresh Nerve each round | 88 | 0.66 | R5.7 | 30 | 37% | 68 |
+| fresh Nerve + panic 2 | 88 | 0.54 | R5.4 | 25 | 43% | 71 |
+| fresh Nerve + panic 2 + quiet kills | 89 | 0.61 | R5.6 | 27 | 37% | 70 |
+| panic 2 only | 89 | 0.80 | R5.6 | 36 | 82% | 82 |
+Within this engine, accumulated Nerve plays better by every bot proxy. Toggles kept (`freshNerve`, `panic`, `quietKills`).
+The complaint ("Nerve feels like a health bar") is about **perception**. Next: a human A/B in the client, and a presentation
+pass (show Nerve as a breaking-point gauge under pressure, not as an HP bar).
