@@ -1,295 +1,190 @@
-# SHATTERLINE — Game Design (v0.1, prototype)
+# SHATTERLINE: Game Design (v0.2)
 
-> A sci-fi hex-board TCG where armies are beaten by **breaking their will**, not
-> just by grinding their hit points. Hidden simultaneous orders, stackable
-> formations, terrain geometry, and a doubling-stakes gamble.
+> A sci-fi hex-board card game where armies are beaten by **breaking their will**, not by
+> grinding hit points. You make decisions only at placement time: hidden, simultaneous,
+> Hive-style placement. Combat then resolves on its own, predictably, with intent shown in
+> advance. Stacking reinforcements and a doubling-stakes gamble complete the loop.
 
-Working title: **Shatterline**. Everything here is a prototype hypothesis; numbers
-are tuned by headless AI-vs-AI simulation (`npm run sim`) and playtests.
+All numbers come from headless AI-vs-AI simulation (`npm run sim`, `npm run sim -- 16 --arch`).
+See §11 for the latest results.
 
 ---
 
-## 1. Design pillars (and why)
+## 1. Design pillars
 
-These come from established design principles; every rule below should serve
-one of them.
-
-| Pillar | Principle it serves | How it shows up |
+| Pillar | Why | How |
 |---|---|---|
-| **Morale is the real health bar** | "A game is a series of interesting decisions" (Sid Meier). Two damage tracks (Strength + Morale) means every attack is a *choice* between killing and breaking. | Every attack deals ⚔ Damage *and* ☠ Shock. Breaking is usually faster than killing, but broken troops can come back. |
-| **Position over arithmetic** | Depth from simple rules, not long rules text (Marvel Snap's "elegance" goal). | Flanking, support, high ground and faction "geometry" (lines / radius / triangles) decide fights more than raw stats. |
-| **Hidden, simultaneous orders** | Simultaneous turns kill downtime and create bluffing; input-randomness from *opponent's* choices, not dice. | Both players secretly place deploys **and reinforcements face-down**, then reveal. |
-| **Deterministic combat** | Output randomness makes players feel robbed; hidden info already supplies uncertainty. | No dice. Combat math is fully predictable once revealed. |
-| **Short, tense matches** | Short games, clear end point (8 rounds), a final-round crescendo. | Max 8 rounds, ~10–15 minutes. |
-| **The gamble** | Snap-style stakes: confidence becomes a resource, and conceding is a skill. | **Escalate** doubles stakes; **Sound the Retreat** concedes at current stakes. |
-| **Comebacks without rubber-banding wins** | Avoid snowballing; keep losing player engaged. | Lower-Resolve player gets initiative; broken units regroup; reinforcement rallies. |
-| **Asymmetry through rules, not just stats** | StarCraft-like factions that *play* differently. | Each faction breaks, rallies and buffs by a different rule. |
-| **No dominant strategy** | Dominant strategies drain choice. | Stack-vs-spread tension; every faction geometry has a counter in the other two. |
+| **Morale is the real health bar** | Every attack becomes a choice between killing and breaking. | Normal attacks deal **Shock** (morale damage). Real casualties come from *Lethal* units, from running down broken troops, and from surrenders. |
+| **Every decision is a placement** | Players should not micromanage. A drawn-out tactics game drives away new players (Faeria, Duelyst). | You choose *what*, *where* and *how much to stake*. Combat resolves on its own. |
+| **Deterministic and telegraphed** | Opaque automatic combat feels random (Artifact, Battlegrounds). Telegraphing makes every loss your own fault (Into the Breach). | One targeting rule for every unit, no dice, and intent arrows shown while you plan. |
+| **Position over arithmetic** | Get depth from simple rules (Marvel Snap). | Flanking, high ground, cover, firing lines and Hive placement decide fights. |
+| **Hidden, simultaneous orders** | No downtime, and room to bluff. | Both players place face-down, then reveal. |
+| **Every rout has an author** | Morale must come from something a player did, not from slow attrition. | Breaks come from flanks, surrounds, cut synapse links and decoys that someone placed. |
+| **Obvious faction goals** | Like Infinity Wars and 40k, you should read a faction's plan at a glance. | Concord holds the line. Brood swarms and evolves. The Hush strike unseen. |
+| **Three numbers per card** | Avoid spreadsheet play (Gwent's single number). | **Cost, Power, Nerve.** Range and speed are icons. |
+| **The gamble** | Snap-style stakes turn confidence into a resource. | **Escalate** doubles the stakes. **Sound the Retreat** concedes at the current stakes. |
 
 ---
 
 ## 2. Components
 
-- **Board**: hex grid, 7 columns × 8 rows (pointy-top, odd-row offset). Each player's
-  **home zone** is their 2 nearest rows. Hexes have:
-  - **Elevation** 0 / 1 / 2.
-  - **Terrain**: `open`, `ruins` (cover), `crater` (ends movement), `relay` (objective).
-  - Three **Relays** sit in the middle rows.
-- **Deck**: 20 cards, max 2 copies. Opening hand 5; draw 1 per round.
-- **Resolve**: each player starts at **16**. This is your army's will to fight.
-- **Command (CP)**: per-round energy for playing cards.
+- **Board:** 45 hexes in rows of 6/7/6/7/6/7/6, point-symmetric. Hexes have **elevation**
+  (0–2) and a terrain type: `open`, `ruins` (cover), `crater` (stops movement) or `relay` (objective).
+  There are 3 Relays in the centre row.
+- **HQ:** each player starts with an HQ on their home edge. It is Fearless, has 12 Power and
+  never moves. Your army grows outward from it.
+- **Deck:** 20 cards, max 2 copies. You draw 5 to start and **2 per round** (hand limit 8).
+- **Resolve:** 16. This is your army's will to fight. At 0 your army collapses.
+- **Command (CP):** `min(round+1, 7)` + 1 per Relay you hold. 1 unspent CP carries over.
 
----
+## 3. Cards
 
-## 3. Cards and formations
+**Units** show **Cost / Power / Nerve**, plus icons for range and speed (defaults: melee, speed 1).
+- **Power** is both strength and toughness. A unit strikes for its Power, and damage
+  lowers Power, so wounded units hit softer.
+- **Nerve** is morale. Shock lowers it. At 0 the formation **Breaks**.
 
-Every card in the prototype is a **unit card**:
+**Tactics** are one-round orders (Over the Top!, Hold Fast, False Orders, …). You play them
+on a formation, and they compete with units for the same Command. These are the only
+"orders" in the game.
 
-```
-Cost   ⚔ Power   ☠ Shock   ♥ Strength   ⚑ Morale   Range   Speed   Class
-```
+**Heavy** units (cost 5+) are ordered one round ahead. A face-down drop marker sits on the hex
+for a round, then the unit lands. Heavies are a telegraphed gamble.
 
-- ⚔ **Power** – damage dealt to Strength.
-- ☠ **Shock** – morale damage dealt.
-- ♥ **Strength** – the card's hit points.
-- ⚑ **Morale** – the card's contribution to the formation's will.
-- **Range** – 1 = melee; 2+ = ranged (needs line of sight unless *Indirect*).
-- **Speed** – hexes per move.
-- **Class** – `Infantry`, `Vehicle`, `Officer`, `Beast`, `Swarm`, `Synapse`,
-  `Construct`, `Psion`, `Structure`, `Drone`.
+### Formations and stacking
+A formation is 1–3 cards on one hex (Swarm: up to 5).
+- **Reinforce** by playing a card onto your own formation of the same class.
+  Officers can join any stack.
+- **A stack is the sum of its cards.** Power and Nerve add up. Only the **top card's** (the Lead's)
+  keyword is active.
+- Reinforcing a **Broken** formation rallies it.
+- **Trade-off:** spread units make more strikes and get flanking and firing lines. A stack is
+  harder to break but is one big target, and it costs more Resolve when it breaks.
 
-### Formations and stacking ("reinforce")
+## 4. Placement (Hive rule)
 
-A **formation** is a stack of 1–3 cards on one hex (Swarm: up to 5).
+A new formation must be placed **touching one of your formations** and **not touching an
+enemy**. Exceptions:
+- Infiltrate units, and hexes next to your spawn structures (Spore Pod, Shroud Lantern), may touch enemies.
+- Brood Infiltrators may also be placed anywhere next to Creep.
 
-- You **reinforce** by playing a card onto your own formation of the **same Class**
-  (Officers may join any non-Structure stack as an attached commander).
-- The **newest card goes on top and becomes the Lead**. Only the Lead's abilities
-  are active (plus any *Reinforce:* trigger the new card has).
-- Formation stats:
-  - ⚔ = Lead ⚔ **+1 per card beneath**
-  - ☠ = Lead ☠
-  - ♥ = tracked **per card**; damage hits the Lead first. When the Lead dies, the next
-    card becomes Lead (abilities change!) and the formation takes **1 ☠ (leader down)**.
-  - Max ⚑ = Lead ⚑ **+1 per card beneath**.
-- Reinforcing restores ⚑ equal to the new card's ⚑ (capped at max).
-- **Reinforcing a Broken formation rallies it** (it becomes Shaken).
+You may also place onto your own formation to reinforce it. You may place at most one unit
+per hex per round.
 
-Stacking concentrates power and morale, but loses board width, flanks and
-support, and one stack breaking costs a lot of Resolve. Stacking is never strictly better.
+## 5. Round structure
 
----
+1. **Orders (simultaneous, hidden).** Both players place cards face-down and may Escalate.
+2. **Reveal.** Heavy drops land first. Then the initiative player's cards, then the other
+   player's (units first, then tactics).
+3. **Advance.** Each formation that has nothing in reach moves its speed toward the nearest
+   enemy or unheld Relay. Exceptions:
+   - It doesn't move if it is Shaken, holding a Relay, just deployed, or immobile.
+   - It stops when it touches an enemy or when something comes into reach.
+   - Initiative player's formations move first.
+4. **Ranged volley.** Every ranged unit not in contact fires **simultaneously**.
+5. **Melee clash.** Every formation in contact strikes **simultaneously**. Ranged units in contact fire at point-blank range.
+6. **Routs.** Broken formations act out their faction's break behaviour (§7).
+7. **Upkeep:**
+   - Rallies.
+   - Nerve recovery: +1 Nerve if not in contact.
+   - Brood evolve.
+   - Hush re-cloak.
+   - Creep.
+   - **Relays** drain 1 enemy Resolve each.
+   - **Siege:** each formation touching the enemy HQ drains 1.
+8. **Next round.** Initiative goes to the player with **lower Resolve** (a catch-up mechanic). You gain Command and draw 2.
 
-## 4. Round structure
+## 6. Combat
 
-The game lasts up to **8 rounds**. Each round:
+**Targeting rule (used by every unit):** strike the **nearest** enemy in reach. Ties go to
+an enemy in your **front arc**, then the **lowest Nerve**, then the **leftmost**. *Hunters*
+instead pick the costliest enemy in reach. Ranged attacks need line of sight unless the unit
+is *Indirect*. Cloaked enemies can only be hit when adjacent.
 
-### 4.1 Supply
-- Gain CP = `min(round, 6)` + **1 per Relay you control**. Up to 1 unspent CP carries over.
-- Draw 1 card (hand limit 8).
+**Strike value** = formation Power, then apply these modifiers:
 
-### 4.2 Orders (simultaneous, hidden)
-Both players secretly assign cards:
-- **Deploy** face-down to an empty hex in your home zone (or next to a faction
-  spawn structure).
-- **Reinforce** face-down onto one of your formations. The opponent sees that
-  *something* is arriving, but not what.
-- You may **Escalate** (see §8).
+| | |
+|---|---|
+| Flank (attacker outside the target's front arc) | +1 |
+| Higher ground / lower ground | +1 / −1 |
+| Target in cover (ranged attack) | −1 |
+| Target supported by 2+ adjacent allies | −1 |
+| Shaken attacker | −1 |
+| Ambush (attacking from cloak) | +2 |
+| Firing Line, Officer aura, Synapse, Frenzy, Charge, Volley | per card |
 
-Then both lock in.
+The strike value is dealt as **Shock** (Nerve damage). It is dealt as **damage** instead when:
+- the attacker is **Lethal**;
+- the target is already **Broken** (it gets run down);
+- the target is **Fearless**: HQs and structures take it in full, and **linked Brood** take half.
 
-### 4.3 Reveal
-Cards flip, **initiative player first**. Deploy collisions (rare; infiltrators) bump the
-second card to the nearest legal empty hex. *On Reveal* abilities trigger in that order.
+**Breaks:**
+- The owner loses **3 Resolve** (Brood: 1; a Synapse: 3; all-token formations: 0).
+- Adjacent friends **panic** (−1 Nerve).
 
-### 4.4 Battle (alternating activations)
-Starting with the initiative player, players alternate activating **one formation at a
-time**: **move, then attack** (either is optional). A player with no formations left to
-activate passes; the other finishes.
-- Cards deployed this round can't act (**Deploying**) unless they have *Rapid*.
-- Reinforced formations **can** act.
+**Deaths:** each card destroyed costs **1 Resolve** (Synapse 3, HQ 6, tokens 0). It also
+panics the formation and its neighbours.
 
-### 4.5 End phase
-In order:
-1. **Broken formations act** (flee / go feral / recall, by faction, §6).
-2. **Regroup**: Concord Broken formations in their home zone and not adjacent to an enemy
-   rally to Shaken with ⚑ 1.
-3. **Recover**: formations not adjacent to an enemy regain 1 ⚑.
-4. **Relays**: a Relay is controlled by whoever last had a non-Broken formation on it.
-   Each Relay you control drains **1 enemy Resolve**.
-5. **Breakthrough**: each of your non-Broken formations in the enemy home row drains
-   **1 enemy Resolve**.
-6. **Initiative** goes to the player with **lower Resolve** (tie: it alternates).
+**Surrender:** a broken formation with no escape route is captured, and all its cards are lost.
+Encircling an enemy is how morale play turns into outright kills.
 
----
+## 7. Factions (15 cards each, 3 archetypes)
 
-## 5. Combat
+### Concord Vanguard: "Hold the line"
+- **Firing Line:** +1 when 3 or more Concord units stand side by side in a row.
+- **Rout & Regroup:** a broken formation flees toward home. It rallies in the home zone, or next to a Whistle-Lieutenant.
+- **Archetypes:**
+  - **Gunline:** riflemen, officers, a sniper.
+  - **Bastion:** sappers, pillboxes, mortars, artillery.
+  - **Iron Tide:** ram-tracks, walkers, siege-crawler, Over the Top!.
 
-**Targeting**: melee (Range 1) hits adjacent hexes. Ranged needs
-`distance ≤ range` and line of sight. Line of sight is blocked by any intervening hex whose
-elevation is greater than both endpoints, or by intervening formations, unless the shooter
-is higher than them.
+### Vhorr Brood: "Swarm & evolve"
+- **Synaptic Link:** Brood within 2 of a Synapse (3 for the Overmind) are **Fearless**. They take half of any Shock as damage.
+- **Feral:** a broken Brood formation doesn't flee. It attacks whatever is adjacent, friend or foe, and rallies only once it is relinked.
+- **Evolve:** a Brood unit that draws blood gains +1 Power (max +3).
+- Brood breaks cost only 1 Resolve.
+- **Archetypes:**
+  - **Endless Tide:** Skitterlings, Pods, Spawning.
+  - **Apex:** grubs, Ravager, Gorgemaw, Pheromone.
+  - **Synaptic Terror:** Wardens, Howler, Leech, Overmind, Psychic Scream.
 
-**Damage (⚔)** modifiers:
-- +1 ranged attacker on higher elevation than the target
-- −1 target in *cover* (ruins/fortified) vs ranged
-- −1 melee attacking uphill
-- +1 target is Broken
-- −1 attacker is Shaken
-- Ward absorbs damage first (Lattice)
+### The Hush: "Unseen"
+- **Cloak:** Hush units arrive cloaked. Enemies see that something is there but not what. Cloaked units can only be hit when adjacent, and they are spotted when an enemy steps next to them.
+- **Ambush:** an attack from cloak gets +2.
+- **Vanish:** a broken Hush formation melts away. Its Lead returns to your hand, unless it is caught while adjacent to an enemy, in which case it surrenders.
+- **Archetypes:**
+  - **Phantom Host:** decoys, Mirage Weaver, Smoke & Mirrors.
+  - **Night of Knives:** assassins, Quiet Needle, the Faceless.
+  - **Dread:** Rumor-Wrights, Hollow Choir, Dread Herald, False Orders.
 
-**Shock (☠)** modifiers:
-- **Flanking**: +1 for each *other* of your non-Broken formations adjacent to the target (max +2)
-- **Support**: −1 if the target has 2+ adjacent friendly non-Broken formations
-- **High ground**: −1 if the target is higher than the attacker
-- **Casualties**: +1 if the attack destroyed at least one card
+Full card list: `src/shared/cards.ts`.
 
-**Retaliation**: a melee target that survives and isn't Broken strikes back
-with its ⚔ as damage (no shock, no modifiers except Ward/cover).
-
-### Morale states
-- **Steady**: ⚑ > half of max.
-- **Shaken**: ⚑ ≤ half max. −1 ⚔. Can't end a move closer to the nearest enemy.
-- **Broken**: ⚑ reaches 0.
-  - Owner loses **2 Resolve** (faction exceptions).
-  - **Panic**: every adjacent friendly formation takes 1 ☠. Cascades can chain, but each
-    formation takes panic at most once per break event.
-  - Can't activate. Attacks against it get +1 ⚔. Doesn't retaliate.
-
-### Destruction
-Each card destroyed costs its owner **1 Resolve**. Killing works, but it's slower
-than breaking.
-
-### Encirclement
-When a fleeing formation has **no legal step** it **surrenders**: all its cards are
-destroyed. You get the full kill penalty plus the break you already caused. Encircling is
-how a morale army wins outright.
-
----
-
-## 6. Factions
-
-Each faction's rule is about **geometry**, and each geometry has a natural counter
-in another faction.
-
-### 6.1 The Concord Vanguard — *discipline & lines*
-Hard-bitten colonial militaries, rifles and walkers, painted unit numbers.
-- **Firing Line**: a Concord formation in a straight line of 3+ adjacent Concord
-  formations gets **+1 ⚔**.
-- **Rout & Regroup**: Broken Concord formations **flee** Speed hexes toward their home
-  edge in the end phase. They can't step into hexes adjacent to enemies, and
-  surrender if they can't move. In the home zone they regroup.
-- Strong Officers: auras that blunt Shock and rally.
-- *Countered by*: Lattice push (breaks lines), Brood flanking speed.
-
-### 6.2 The Vhorr Brood — *the synaptic swarm*
-A bio-swarm with no individual will, only the Overmind's.
-- **Synaptic Link**: Brood within **2 hexes** of a friendly **Synapse** formation are
-  **Linked**: they **ignore Shock**.
-- **Feral**: unlinked Brood take **double Shock**.
-- **Broken Brood go Feral, they don't flee**. In the end phase they attack the nearest
-  adjacent formation of **either side**, or move toward the nearest formation. A
-  Brood break costs only **1 Resolve**; a Synapse dying or breaking costs **3**.
-- **Creep**: hexes next to Spore Pods are Creep. Brood can deploy onto Creep;
-  enemies ending a turn on Creep take 1 ☠.
-- *Countered by*: snipers/artillery killing Synapses, Lattice *Null* fields.
-
-### 6.3 The Hollow Lattice — *resonance & triangles*
-Ancient machine-choirs that think together in geometric harmony.
-- **Ward X**: absorbs the first X damage each round (not Shock).
-- **Resonance**: a Lattice formation in a **triangle** (3 mutually adjacent Lattice
-  formations) is **Resonant**: +1 ⚔ and **immune to Shock**.
-- **Dissonance**: when a Lattice formation breaks or is destroyed, every Lattice within 2
-  hexes takes 2 ☠.
-- **Recall, not rout**: a Broken Lattice formation is **recalled** in the end phase. Its
-  Lead returns to your hand, the rest are discarded, and the break costs 2 Resolve as usual.
-- *Countered by*: Concord artillery splash (clusters), Brood mass Shock on non-triangles.
-
----
-
-## 7. Prototype card list (10 per faction)
-
-See `shared/src/cards.ts` for authoritative numbers. Summary:
-
-**Concord Vanguard**
-| Card | Cost | ⚔/☠ | ♥/⚑ | Rng/Spd | Class | Ability |
-|---|---|---|---|---|---|---|
-| Line Trooper | 1 | 1/1 | 3/3 | 1/1 | Infantry | *Reinforce*: +1 ⚑ to formation |
-| Rifle Section | 2 | 2/1 | 3/3 | 2/1 | Infantry | Volley: +1 ☠ vs target already attacked this round |
-| Field Lieutenant | 2 | 1/0 | 2/5 | 1/1 | Officer | Adjacent friendlies take −1 ☠. Activate: rally adjacent Broken |
-| Sapper Team | 2 | 2/1 | 2/3 | 1/2 | Infantry | Dig In: skip attack to fortify own hex (cover) |
-| Mortar Crew | 3 | 1/3 | 2/2 | 3/1 | Infantry | Indirect fire |
-| Longshot Marksman | 2 | 3/1 | 1/2 | 3/1 | Infantry | Ignores cover; +1 range on high ground |
-| Lancer Halftrack | 3 | 2/1 | 4/3 | 1/3 | Vehicle | Charge: moved 2+ → +2 ☠ |
-| Bulwark Walker | 4 | 3/2 | 6/4 | 1/1 | Vehicle | Unflankable; adjacent Infantry count as in cover |
-| Signal Marshal | 3 | 0/0 | 3/6 | 0/1 | Officer | End: Concord within 2 regain +1 ⚑ |
-| Hammerfall Battery | 5 | 3/3 | 4/3 | 4/0 | Vehicle | Indirect; Barrage: 1 ☠ splash to all adjacent formations |
-
-**Vhorr Brood**
-| Card | Cost | ⚔/☠ | ♥/⚑ | Rng/Spd | Class | Ability |
-|---|---|---|---|---|---|---|
-| Skitterling Brood | 1 | 1/1 | 2/2 | 1/3 | Swarm | Stacks to 5 |
-| Spore Pod | 1 | 0/0 | 3/3 | 0/0 | Structure | Creep around it; deploy point |
-| Lashworm | 2 | 2/1 | 3/2 | 2/2 | Beast | Burrow: ignores zone of control |
-| Howler | 2 | 0/2 | 2/2 | 1/2 | Beast | Shriek: hits all adjacent enemies with its ☠ |
-| Mimic Swarm | 2 | 1/2 | 2/2 | 1/2 | Swarm | Infiltrate: deploy adjacent to any Creep |
-| Synapse Warden | 3 | 1/2 | 4/5 | 1/1 | Synapse | Links Brood within 2 |
-| Acid Spitter | 3 | 2/1 | 2/2 | 3/1 | Beast | Melts cover off target hex |
-| Ravager | 4 | 4/2 | 5/3 | 1/2 | Beast | Frenzy: +1 ⚔ per other Brood adjacent to target |
-| Hivemind Overseer | 5 | 2/2 | 5/6 | 2/1 | Synapse | Link range 3; Linked Brood +1 ⚔ |
-| Gorgemaw | 5 | 4/4 | 8/3 | 1/1 | Beast | Devour: on kill, heal 3 and 2 ☠ to adjacent enemies |
-
-**Hollow Lattice**
-| Card | Cost | ⚔/☠ | ♥/⚑ | Rng/Spd | Class | Ability |
-|---|---|---|---|---|---|---|
-| Glasswing Drone | 1 | 1/1 | 1/2 | 1/4 | Drone | Flying; no Dissonance |
-| Shardling Sentinel | 2 | 1/1 | 3/4 | 1/1 | Construct | Ward 1 |
-| Cantor | 2 | 0/2 | 2/5 | 2/1 | Psion | Dirge: Shock ignores Support & officer auras |
-| Fold Anchor | 2 | 0/0 | 4/4 | 0/0 | Structure | Ward 2; deploy point; counts as a triangle vertex |
-| Prism Lancer | 3 | 3/1 | 2/3 | 3/1 | Construct | Ward 1; Resonant: also hits the formation behind target |
-| Kinetic Warden | 3 | 2/1 | 4/4 | 1/1 | Construct | Ward 2; Repulse: push target 1; blocked → +2 ☠ |
-| Null Sphere | 3 | 0/0 | 5/5 | 0/2 | Construct | Ward 2; enemy auras & links don't reach adjacent hexes |
-| Echo Choir | 4 | 1/3 | 3/6 | 2/1 | Psion | End: Lattice within 2 +1 ⚑ |
-| Requiem Engine | 5 | 2/2 | 5/5 | 3/1 | Construct | Ward 1; Disassemble: tears the bottom card off target stack |
-| Hollow Colossus | 6 | 5/2 | 8/6 | 2/1 | Construct | Ward 3; ☠ doubled vs Shaken targets |
-
----
-
-## 8. The gamble: Escalation (stakes)
-
-Every match is played for **Glory** (ranked points; cosmetic in vs-AI).
-- Stakes start at **1**.
-- During Orders, each player may **Escalate** once per match. Stakes double at the **start of
-  the next round** (so the opponent sees it coming and gets a round to react).
-- Stakes also auto-double before the final round.
-- At any time, a player may **Sound the Retreat**: they lose immediately, at the
-  **current** stakes (before a pending escalation applies).
-- Max stakes 8.
-
-So you can bluff confidence, cut losses, and punish an opponent who escalates on
-a board that's about to collapse.
-
----
+## 8. The gamble: Escalation
+- Stakes start at 1.
+- Each player may **Escalate** once per match, as part of their hidden orders.
+- Stakes double at the **start of the next round**, which gives the opponent a round to react. They also auto-double before round 8. Stakes are capped at 8.
+- At any time, a player may **Sound the Retreat**: they concede at the **current** stakes, before any pending escalation applies.
 
 ## 9. Victory
-- Reduce enemy Resolve to **0**, or
-- After round 8, the higher Resolve wins (tie → more Relays → more cards on board → draw).
+- Reduce the enemy's Resolve to 0, **or**
+- after round 8, have the higher Resolve. Ties go to the player with more Relays, otherwise the game is a draw.
 
----
+## 10. Backlog / future factions
+- **Ossuary Engines** (undying machines): destroyed units leave husks that rebuild unless an enemy holds the hex.
+- **Choir of the Pyre** (zealots): Fervor rises as allies die, until their standard falls.
+- **Grukkan Surge** (momentum horde): fearless while winning, collapses all at once when stalled.
+- **Hollow Lattice** (resonant crystal machines): shelved concept from v0.1.
+- Deck-building: Gwent-style provision limits.
 
-## 10. Presentation notes
+## 11. Latest simulation (greedy 1-ply AI, 432 games)
+- **Win rate by archetype** (range 37–59%):
 
-- Card art is **text-free base images** (portrait 2:3). The client draws all
-  numbers and frames as overlays (cost gem, ⚔/☠, ♥, ⚑, class pip, ability text).
-- Art direction (original): painterly gritty military sci-fi, muted desaturated
-  palette with one faction accent color, heavy atmosphere, dramatic rim light,
-  propaganda-poster composition crossed with dark oil painting.
-  - Concord: olive drab, rust, cream, signal-red accents.
-  - Brood: bruised purples, bile green, wet chitin.
-  - Lattice: obsidian, pale gold light, cracked porcelain/glass.
+  | Faction | Archetypes |
+  |---|---|
+  | Concord | gunline 48, bastion 49, iron 46 |
+  | Brood | tide 54, apex 52, synapse 59 |
+  | Hush | phantom 45, knives 38, dread 50 |
 
-## 11. Open questions (to be answered by simulation/playtest)
-- Starting Resolve (16?) vs game length. Target: most games end in rounds 6–8.
-- Is break (−2) vs card death (−1) the right ratio to make morale the main route?
-- Are Relays too swingy (CP *and* drain)?
-- Does Brood shock immunity make them unbreakable near Synapses? (Watch Synapse-kill rate.)
+- **Game length:** most games end in rounds 5–7.
+- **Resolve lost by source:** morale 47%, relays 25%, kills 23%, surrender 4%.
+- **Known AI limit:** it assumes the opponent plays nothing this round. This undervalues stealth and ambush play.
