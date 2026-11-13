@@ -213,8 +213,8 @@ export class Board3D {
     this.renderer.shadowMap.enabled = true;
     el.appendChild(this.renderer.domElement);
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
-    this.scene.background = new THREE.Color('#2a3a2c');
-    this.scene.fog = new THREE.Fog('#34463a', 20, 46);
+    this.scene.background = skyTexture();
+    this.scene.fog = new THREE.Fog('#b9c7b0', 26, 70);
     this.renderer.toneMappingExposure = 1.25;
     this.scene.add(this.root);
     this.root.add(this.overlays, this.fx, this.links);
@@ -229,9 +229,12 @@ export class Board3D {
     this.scene.add(hemi, key, rim);
 
     // ground plane
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 48), new THREE.MeshStandardMaterial({ color: '#3d5232', roughness: 1, map: groundTexture() }));
+    // endless field to the horizon
+    const gtex = groundTexture().clone(); gtex.needsUpdate = true; gtex.repeat.set(60, 60);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(160, 64), new THREE.MeshStandardMaterial({ color: '#5f8a45', roughness: 1, map: gtex }));
     ground.rotation.x = -Math.PI / 2; ground.position.y = -0.01; ground.receiveShadow = true;
     this.scene.add(ground);
+    this.scene.add(scenery());
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -672,6 +675,42 @@ function animateSmoke(p: THREE.Points, t: number) {
     a.setXYZ(i, Math.sin(seeds[i] * 40) * 0.4 + Math.sin(t + i) * 0.1 * k, 0.4 + k * 2.2, Math.cos(seeds[i] * 40) * 0.4);
   }
   a.needsUpdate = true;
+}
+
+/** Vertical sky gradient: pale horizon to soft blue-grey above. */
+function skyTexture(): THREE.Texture {
+  const c = document.createElement('canvas');
+  c.width = 4; c.height = 256;
+  const g = c.getContext('2d')!;
+  const gr = g.createLinearGradient(0, 0, 0, 256);
+  gr.addColorStop(0, '#7f97a8'); gr.addColorStop(0.55, '#b4c4b8'); gr.addColorStop(1, '#c9d2b8');
+  g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** Rocks, shrubs and shell craters scattered around the play area so it sits in a landscape. */
+function scenery(): THREE.Group {
+  const grp = new THREE.Group();
+  let seed = 42;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const rock = new THREE.MeshStandardMaterial({ color: '#8b877c', roughness: 1, flatShading: true });
+  const shrub = new THREE.MeshStandardMaterial({ color: '#4e7a3a', roughness: 1, flatShading: true });
+  const crater = new THREE.MeshStandardMaterial({ color: '#4a3e2c', roughness: 1 });
+  for (let i = 0; i < 120; i++) {
+    const a = rnd() * Math.PI * 2, r = 9 + rnd() * 40;
+    const x = Math.cos(a) * r * 1.3, z = Math.sin(a) * r;
+    if (Math.abs(x) < 8.5 && Math.abs(z) < 5.5) continue; // keep the battle line clear
+    if (Math.abs(z) > 4 && Math.abs(x) < 16 + Math.abs(z) * 0.4) continue; // nothing between the camera and the board (either seat)
+    const k = rnd();
+    let m: THREE.Mesh;
+    if (k < 0.4) { m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3 + rnd() * 0.9, 0), rock); m.position.set(x, 0.1, z); m.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); }
+    else if (k < 0.8) { m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4 + rnd() * 0.8, 0), shrub); m.position.set(x, 0.25, z); m.scale.y = 0.7; }
+    else { m = new THREE.Mesh(new THREE.TorusGeometry(0.8 + rnd() * 1.2, 0.25, 6, 16), crater); m.rotation.x = Math.PI / 2; m.position.set(x, 0.02, z); }
+    m.castShadow = true; m.receiveShadow = true;
+    grp.add(m);
+  }
+  return grp;
 }
 
 /** Small always-facing-camera text label (terrain names, etc.). */

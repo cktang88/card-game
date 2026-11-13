@@ -28,7 +28,7 @@ Every card must answer one question: **where do I want to be placed, and why?** 
 
 _Hold the line. Rows of rifles, officers and armour._
 
-**Faction rules:** Drilled: Concord units regain up to 3 Nerve per round from the allies around them (others: up to 2). Shoulder to Shoulder: a Front unit with allies on both sides strikes +1.
+**Faction rules:** Hold the Line: Concord Front units cannot be Flanked. Drilled: regains up to 3 Nerve per round from the allies around it (others: up to 2).
 
 **Archetypes:** Gunline: ranked riflemen and officers · Bastion: walls, cover and artillery · Iron Tide: armour that bulldozes
 
@@ -39,12 +39,12 @@ _Hold the line. Rows of rifles, officers and armour._
 | **Whistle-Lieutenant** | 2 | 1 | 4 | melee | Officer | Officer: adjacent allies strike +1. | Place in the middle of your line; the enemy wants it dead first. | gunline, iron |
 | **Colour Sergeant Hale** | 3 | 2 | 6 | melee | Officer | Standard: adjacent allies take 1 less Shock. | Anchors a shaky line so it does not panic-cascade. | gunline, bastion |
 | **"Widow" Varn, Longshot** | 3 | 2 | 2 | 3 | Infantry | Lethal. Hunter: shoots the enemy Back row first. | Picks off the big expensive threat from far back; fragile if reached. | gunline |
-| **Mole Brigade Sappers** | 2 | 2 | 3 | melee | Infantry | On Reveal: dig in. Its column becomes Ruins (ranged strikes into it −1). | Turns a Relay or chokepoint into a permanent fortified hex. | bastion |
+| **Mole Brigade Sappers** | 2 | 2 | 3 | melee | Infantry | On Reveal: dig in. Its column becomes Ruins (ranged strikes into it −1). | Turns a contested column into Ruins, blunting enemy fire for the rest of the game. | bastion |
 | **Iron Shieldwall** | 2 | 1 | 6 | melee | Infantry | Guard: strikes aimed at the allies beside it hit it instead. | Soaks the hits meant for your officers and snipers. | bastion |
-| **Bastion Pillbox** | 2 | 3 | 0 | 2 | Structure | Fearless: Shock hits it as damage. | An unbreakable gun on a Relay; only damage removes it. | bastion |
+| **Bastion Pillbox** | 2 | 3 | 0 | 2 | Structure | Fearless: Shock hits it as damage. | An unbreakable gun that plugs a column; only damage removes it. | bastion |
 | **Rainmaker Mortar Team** | 3 | 2 | 2 | 3 | Infantry | Splash: also Shocks the enemies beside its target by 1. | Punishes enemies that clump together. | bastion |
 | **Hammerfall 380 Battery** | 5 | 3 | 3 | 4 | Vehicle | Artillery: ignores Ruins and Guard. Lethal. | The answer to walls, Guards and dug-in enemies, from anywhere. | bastion |
-| **Lancer Ram-Track** | 2 | 4 | 4 | melee | Vehicle | On Reveal: rams the enemy Front unit opposite one column aside. If it can’t move, 2 Shock. | The rare mover: shoves a unit off a Relay or crushes it against others. | iron |
+| **Lancer Ram-Track** | 2 | 4 | 4 | melee | Vehicle | On Reveal: rams the enemy Front unit opposite one column aside. If it can’t move, 2 Shock. | The rare mover: shoves the enemy unit opposite aside to open a breach, or crushes it against its neighbours. | iron |
 | **Bulwark Mk.III Walker** | 4 | 6 | 5 | melee | Vehicle | Armor: takes 1 less damage. | Shrugs off snipers and acid. Spearheads a push. | iron, bastion |
 | **Iron Saint Siege-Crawler** | 5 | 6 | 6 | 2 | Vehicle | Breach: +2 against Fearless units and units in cover. | Cracks fortresses and unbreakable swarms. | iron |
 | **Over the Top!** | 1 | – | – | – | Tactic | Target ally strikes +3 this round. | Turns one strike into a break, the round you need it. | iron, gunline |
@@ -54,7 +54,7 @@ _Hold the line. Rows of rifles, officers and armour._
 
 _Swarm & evolve. Fearless while linked; every bite makes them bigger._
 
-**Faction rules:** Flood: a Brood unit In Breach flanks for +2 instead of +1. Synapse Link: Brood around a Synapse are Fearless. Evolve: a Brood unit that strikes gains +1 Power (max +3).
+**Faction rules:** One Organism: Swarms and Beasts count as one class for column hands. Flood: a Brood unit In Breach flanks for +2 instead of +1. Synapse Link: Brood around a Synapse are Fearless. Evolve: a Brood unit that strikes gains +1 Power (max +3).
 
 **Archetypes:** Endless Tide: drown them in bodies · Apex: feed a monster · Synaptic Terror: linked, unbreakable horrors
 
@@ -69,7 +69,7 @@ _Swarm & evolve. Fearless while linked; every bite makes them bigger._
 | **Acidbelly Spitter** | 3 | 2 | 3 | 3 | Beast | Lethal: its acid deals damage, not Shock. | Kills the unbreakables: structures, officers, armour. | apex |
 | **Scythe Ravager** | 4 | 4 | 4 | melee | Beast | Cleave: also strikes the enemies beside its target. | Drop it into the middle of their line. | apex, tide |
 | **The Gorgemaw** | 6 | 7 | 5 | melee | Beast | Drain: heals 2 every time it strikes. | The apex: wins a straight fight against anything. | apex |
-| **Thoughtstalk Warden** | 3 | 2 | 5 | melee | Synapse | Synapse: Brood beside, in front of or behind it are Fearless. | Makes the swarm around it unbreakable. Kill it and they can panic again. | synapse, tide |
+| **Thoughtstalk Warden** | 2 | 2 | 5 | melee | Synapse | Synapse: Brood beside, in front of or behind it are Fearless. | Makes the swarm around it unbreakable. Kill it and they can panic again. | synapse, tide |
 | **Throat-Sac Howler** | 2 | 2 | 3 | melee | Beast | Terror: +2 against units at half Nerve or less. | Finishes off wavering units. | synapse |
 | **Nightmaw Leech** | 3 | 2 | 3 | 2 | Beast | Infect: each enemy it breaks rises as a Skitterling in your line. | Turns their losses into your swarm. | synapse, tide |
 | **Overmind Aspect** | 5 | 3 | 5 | 2 | Synapse | Synapse. Linked Brood strike +1. | The army-wide upgrade; the enemy must go through the swarm to reach it. | synapse |
