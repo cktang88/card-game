@@ -264,3 +264,12 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 /* the instruction hint fades away so it never sits over the battlefield for long */
 #hint.fade { animation: hintfade 7s ease forwards; }
 @keyframes hintfade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Gwent-style landscape layout: the board takes the full height in the middle; Command sits
+   on the left edge and the action buttons on the right edge, in the space beside the board. */
+@media (min-width: 701px) and (min-aspect-ratio: 1/1) {
+  #cp { position: fixed; left: 34px; top: 50%; transform: translateY(-50%); width: 104px; height: 104px; }
+  #cp-n { font-size: 40px; }
+  #actions { position: fixed; right: 22px; top: 50%; transform: translateY(-50%); }
+  #bottombar { grid-template-columns: 1fr; }
+}

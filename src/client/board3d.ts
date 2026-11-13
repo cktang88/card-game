@@ -24,15 +24,17 @@ let CELL = 2.7;               // column spacing
 let ROW_D = 2.0;              // row depth
 const GAP = 0.32;             // no-man's-land between the two Front rows
 let ROW_Z: number[] = [];
-let TOKEN = 0, TOKEN_W = 0, ART_REPEAT_Y = 1, LABEL_ASPECT = 4;
+let TOKEN = 0, TOKEN_W = 0, LABEL_ASPECT = 4;
+let CARD_ASPECT = 0.8; // board unit cards: width / height (4:5 on landscape, full 2:3 on portrait)
 let layoutKind = '';
 function setLayout(kind: 'land' | 'port') {
   layoutKind = kind;
-  [CELL, ROW_D] = kind === 'land' ? [2.7, 2.0] : [1.75, 3.0];
+  ROW_D = 2.2;
+  CARD_ASPECT = kind === 'land' ? 0.8 : 2 / 3;
   LABEL_ASPECT = kind === 'land' ? 4 : 2.2; // narrow portrait cards get relatively bigger stat badges
   ROW_Z = [-(ROW_D * 1.5 + GAP / 2), -(ROW_D / 2 + GAP / 2), ROW_D / 2 + GAP / 2, ROW_D * 1.5 + GAP / 2];
-  TOKEN = ROW_D * 0.9; TOKEN_W = CELL * 0.92;
-  ART_REPEAT_Y = Math.min(1, (2 / 3) / ((TOKEN_W * 0.94) / (TOKEN * 0.92))); // cover-crop portrait art
+  TOKEN = ROW_D * 0.95; TOKEN_W = TOKEN * CARD_ASPECT; // KARDS-style 4:5 unit cards
+  CELL = TOKEN_W * (kind === 'land' ? 1.1 : 1.06);
 }
 setLayout('land');
 /** World x/z of a battle-line cell (kept the old name for minimal churn). */
@@ -74,43 +76,98 @@ const ringMat = (color: THREE.Color) => new THREE.ShaderMaterial({
 });
 
 // ───────────────────────── textures ─────────────────────────
-const artCache = new Map<string, THREE.Texture>();
-function tokenTexture(id: string, faction: Faction): THREE.Texture {
-  const k = id + faction;
-  if (artCache.has(k)) return artCache.get(k)!;
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const g = c.getContext('2d')!;
-  const d = CARD_BY_ID[id];
-  const col = FACTION_INFO[faction].color;
-  const grd = g.createRadialGradient(128, 110, 10, 128, 128, 150);
-  grd.addColorStop(0, col); grd.addColorStop(1, '#0b0b0d');
-  g.fillStyle = grd; g.fillRect(0, 0, 256, 256);
-  g.fillStyle = 'rgba(255,255,255,.85)';
-  g.font = '600 90px Oswald, sans-serif';
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(id === '?' ? '?' : glyph(d?.name ?? '?'), 128, 118);
-  g.font = '600 22px Oswald, sans-serif';
-  g.fillStyle = 'rgba(255,255,255,.7)';
-  g.fillText((d?.cls ?? '').toUpperCase(), 128, 196);
-  const tex: THREE.Texture = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.center.set(0.5, 0.5);
-  artCache.set(k, tex);
-  // try real art
-  if (ART.has(id)) {
-    new THREE.TextureLoader().load(`/art/${id}.webp`, (t) => {
-      t.colorSpace = THREE.SRGBColorSpace;
-      // cover-crop the portrait art onto the wide token, biased slightly upward (faces/heads)
-      const planeAsp = (TOKEN_W * 0.94) / (TOKEN * 0.92), imgAsp = 2 / 3;
-      if (planeAsp >= imgAsp) { t.repeat.set(1, ART_REPEAT_Y); t.offset.set(0, Math.max(0, (1 - ART_REPEAT_Y) / 2 - 0.04)); }
-      else { const rx = planeAsp / imgAsp; t.repeat.set(rx, 1); t.offset.set((1 - rx) / 2, 0); }
-      // dispose first: the GPU storage was sized for the placeholder canvas
-      tex.dispose();
-      (tex as THREE.Texture).image = t.image; tex.repeat.copy(t.repeat); tex.offset.copy(t.offset); tex.needsUpdate = true;
-    }, undefined, () => {});
+// A unit on the board is drawn as a real mini card: faction frame + the full art resized and centred
+// into the frame window + printed Power/Nerve badges (Gwent/KARDS style). No flat coloured borders.
+const IMG = new Map<string, HTMLImageElement>();
+let imgVersion = 0;
+function img(url: string): HTMLImageElement {
+  let im = IMG.get(url);
+  if (!im) {
+    im = new Image(); im.src = url; IMG.set(url, im);
+    im.onload = () => { imgVersion++; };
   }
-  return tex;
+  return im;
+}
+const ready = (im: HTMLImageElement) => im.complete && im.naturalWidth > 0;
+const FRAME_WIN: Record<string, number[]> = { concord: [9.38, 6.18, 9.38, 11.78], brood: [7.03, 5.79, 7.13, 10.55], hush: [8.5, 5.21, 8.5, 11.13] };
+
+interface FaceStats { power: string; nerve: string; stack: number; wavering: boolean }
+function cardFace(id: string, faction: Faction, st: FaceStats | null): HTMLCanvasElement {
+  const W = 400, H = Math.round(W / CARD_ASPECT);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d')!;
+  // The frame art is a 600×900 card; 9-slice it to 4:5 at the frame's own scale (k), so corners stay crisp.
+  const k = W / 600;
+  const [l, t, r, b] = FRAME_WIN[faction].map((v) => v / 100);
+  const wx = l * 600 * k, wy = t * 900 * k, ww = W - (l + r) * 600 * k, wh = H - (t + b) * 900 * k;
+  // window background, then the art: resized to COVER the window, centred (window ≈ 2:3, so almost nothing is lost)
+  g.fillStyle = '#0d0c0e'; g.fillRect(wx, wy, ww, wh);
+  const art = id !== '?' && ART.has(id) ? img(`/art/${id}.webp`) : null;
+  if (art && ready(art)) {
+    const s = Math.max(ww / art.naturalWidth, wh / art.naturalHeight);
+    const dw = art.naturalWidth * s, dh = art.naturalHeight * s;
+    g.save(); g.beginPath(); g.rect(wx, wy, ww, wh); g.clip();
+    g.drawImage(art, wx + (ww - dw) / 2, wy + (wh - dh) / 2, dw, dh);
+    g.restore();
+  } else {
+    const grd = g.createRadialGradient(W / 2, H * 0.42, 10, W / 2, H / 2, W * 0.7);
+    grd.addColorStop(0, FACTION_INFO[faction].color); grd.addColorStop(1, '#0b0b0d');
+    g.fillStyle = grd; g.fillRect(wx, wy, ww, wh);
+    g.fillStyle = 'rgba(255,255,255,.85)'; g.font = '700 120px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(id === '?' ? '?' : glyph(CARD_BY_ID[id]?.name ?? '?'), W / 2, H * 0.45);
+  }
+  // bottom vignette so the printed stats read on any art
+  const vg = g.createLinearGradient(0, wy + wh * 0.62, 0, wy + wh);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)');
+  g.fillStyle = vg; g.fillRect(wx, wy, ww, wh);
+  const frame = img(`/ui/frame_${faction}.webp`);
+  if (ready(frame)) {
+    const sx = 130, sTop = 150, sBot = 170; // source slice sizes (corner ornaments)
+    const FW = 600, FH = 900, dx = sx * k, dTop = sTop * k, dBot = sBot * k;
+    const cols: [number, number, number, number][] = [[0, sx, 0, dx], [sx, FW - 2 * sx, dx, W - 2 * dx], [FW - sx, sx, W - dx, dx]];
+    const rows: [number, number, number, number][] = [[0, sTop, 0, dTop], [sTop, FH - sTop - sBot, dTop, H - dTop - dBot], [FH - sBot, sBot, H - dBot, dBot]];
+    for (const [sx0, sw, dx0, dw] of cols) for (const [sy0, sh, dy0, dh] of rows) g.drawImage(frame, sx0, sy0, sw, sh, dx0, dy0, dw, dh);
+  }
+  if (st) {
+    const num = (txt: string, x: number, y: number, fill: string, stroke: string, size: number) => {
+      g.font = `900 ${size}px Cinzel, Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineJoin = 'round'; g.lineWidth = size * 0.16; g.strokeStyle = stroke; g.strokeText(txt, x, y);
+      g.fillStyle = fill; g.fillText(txt, x, y);
+    };
+    const bw = W * 0.34;
+    if (badgesReady()) {
+      g.drawImage(BADGE.pow, -W * 0.02, H - bw * 1.12, bw, bw * 1.07);
+      g.drawImage(BADGE.nrv, W - bw * 0.97, H - bw * 1.1, bw * 0.96, bw * 1.04);
+    }
+    num(st.power, bw * 0.47, H - bw * 0.58, '#fff1d6', '#2a0805', 64);
+    num(st.nerve, W - bw * 0.49, H - bw * 0.6, '#eaf0ff', '#0a1530', 60);
+    if (st.stack > 1) for (let i = 0; i < st.stack; i++) {
+      const x = W / 2 - (st.stack - 1) * 17 + i * 34;
+      g.save(); g.translate(x, H - 34); g.rotate(Math.PI / 4);
+      g.fillStyle = '#f3d999'; g.strokeStyle = '#3a280c'; g.lineWidth = 3; g.fillRect(-10, -10, 20, 20); g.strokeRect(-10, -10, 20, 20);
+      g.restore();
+    }
+    if (st.wavering) {
+      g.font = '700 34px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.lineWidth = 7; g.strokeStyle = '#000';
+      g.strokeText('WAVERING', W / 2, H * 0.72); g.fillStyle = '#ffb03a'; g.fillText('WAVERING', W / 2, H * 0.72);
+    }
+  }
+  return c;
+}
+function faceTexture(c: HTMLCanvasElement): THREE.Texture {
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+
+/** Soft owner glow under a unit card (replaces the old flat coloured ring). */
+let glowTex: THREE.Texture | null = null;
+function glowTexture(): THREE.Texture {
+  if (glowTex) return glowTex;
+  const c = document.createElement('canvas'); c.width = 128; c.height = 192;
+  const g = c.getContext('2d')!;
+  g.filter = 'blur(14px)'; g.fillStyle = '#fff';
+  g.beginPath(); g.roundRect(26, 26, 76, 140, 10); g.fill();
+  glowTex = new THREE.CanvasTexture(c);
+  return glowTex;
 }
 
 export function glyph(name: string): string {
@@ -233,7 +290,7 @@ export class Board3D {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = true;
     el.appendChild(this.renderer.domElement);
-    this.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
+    this.camera = new THREE.PerspectiveCamera(24, 1, 0.1, 300);
     this.scene.background = skyTexture();
     new THREE.TextureLoader().load('/board/sky.webp', (t) => { t.colorSpace = THREE.SRGBColorSpace; this.scene.background = t; });
     this.scene.fog = new THREE.Fog('#8f957a', 30, 75);
@@ -274,7 +331,7 @@ export class Board3D {
     const kind = h > w * 1.05 ? 'port' : 'land';
     if (kind !== layoutKind) {
       setLayout(kind);
-      artCache.clear();
+      imgVersion++; // force card faces to redraw at the new size
       this.terrainSig = '';
       for (const tk of this.tokens.values()) this.root.remove(tk.group);
       this.tokens.clear();
@@ -288,8 +345,8 @@ export class Board3D {
   fitCamera(w: number, h: number) {
     const cam = this.camera;
     const portrait = h > w;
-    const pitch = portrait ? 1.2 : 1.05;           // radians above horizontal: steep, so far rows don't shrink much
-    const topPx = portrait ? 104 : 58, bottomPx = portrait ? 196 : 118, sidePx = portrait ? 4 : 8;
+    const pitch = portrait ? 1.25 : 0.86;           // radians above horizontal: steep, so far rows don't shrink much
+    const topPx = portrait ? 104 : 60, bottomPx = portrait ? 196 : 112, sidePx = portrait ? 4 : 190; // landscape: HUD lives at the sides
     const xMax = 1 - (2 * sidePx) / w;
     const yTop = 1 - (2 * topPx) / h, yBot = -1 + (2 * bottomPx) / h;
     const hw = (COLS * CELL) / 2, hd = ROW_Z[3] + ROW_D / 2;
@@ -407,15 +464,17 @@ export class Board3D {
 
   private makeToken(f: Formation, s: GameState, viewer: PlayerId): Token {
     const group = new THREE.Group();
-    const h = 0.22;
-    const body = new THREE.Mesh(new THREE.BoxGeometry(TOKEN_W, h, TOKEN), new THREE.MeshStandardMaterial({ color: '#1c1b1e', metalness: 0.6, roughness: 0.4 }));
+    const h = 0.12;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(TOKEN_W * 0.96, h, TOKEN * 0.96), new THREE.MeshStandardMaterial({ color: '#4a3a24', metalness: 0.5, roughness: 0.55 }));
     body.position.y = h / 2; body.castShadow = true;
-    const top = new THREE.Mesh(new THREE.PlaneGeometry(TOKEN_W * 0.94, TOKEN * 0.92), new THREE.MeshStandardMaterial({ roughness: 0.7 }));
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(TOKEN_W, TOKEN), new THREE.MeshStandardMaterial({ roughness: 0.75, transparent: true, alphaTest: 0.05 }));
     top.rotation.x = -Math.PI / 2; top.position.y = h + 0.005;
-    const ring = new THREE.Mesh(new THREE.RingGeometry(TOKEN * 0.62, TOKEN * 0.7, 4, 1, Math.PI / 4), new THREE.MeshBasicMaterial({ color: f.owner === viewer ? ME_COLOR : OPP_COLOR }));
-    ring.rotation.x = -Math.PI / 2; ring.position.y = h + 0.01; ring.scale.x = TOKEN_W / TOKEN;
+    const ring = new THREE.Mesh(new THREE.PlaneGeometry(TOKEN_W * 1.35, TOKEN * 1.25), new THREE.MeshBasicMaterial({
+      map: glowTexture(), color: f.owner === viewer ? ME_COLOR : OPP_COLOR, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02;
     const label = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false, transparent: true }));
-    label.scale.set(TOKEN_W * 0.98, (TOKEN_W * 0.98) / LABEL_ASPECT, 1); label.position.set(0, h + 0.3, TOKEN * 0.34 * (this.seat === 1 ? -1 : 1)); // stats along the edge nearest the viewer label.renderOrder = 10;
+    label.scale.set(TOKEN_W * 0.98, (TOKEN_W * 0.98) / LABEL_ASPECT, 1); label.position.set(0, h + 0.3, 0);
+    label.renderOrder = 10; label.visible = false; // stats are printed on the card face now
     group.add(body, top, ring, label);
     this.root.add(group);
     const tk: Token = { fid: f.fid, group, body, top, label, ring, sig: '', pos: f.pos };
@@ -432,26 +491,29 @@ export class Board3D {
     tk.pos = f.pos;
     const id = lead(f)?.id ?? '?';
     const fac = s.players[f.owner].faction;
-    const sig = [id, power(f), f.morale, f.cards.length, f.cloaked, isFearless(s, f), lead(f)?.grow ?? 0, badgesReady()].join('|');
+    const sig = [id, power(f), f.morale, f.cards.length, f.cloaked, isFearless(s, f), lead(f)?.grow ?? 0, badgesReady(), imgVersion].join('|');
     if (sig === tk.sig) return;
     tk.sig = sig;
-    (tk.top.material as THREE.MeshStandardMaterial).map = tokenTexture(id, fac);
-    (tk.top.material as THREE.MeshStandardMaterial).needsUpdate = true;
-    // label
-    const tex = new THREE.CanvasTexture(labelCanvas(f, s, viewer));
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const lm = tk.label.material as THREE.SpriteMaterial;
-    lm.map?.dispose(); lm.map = tex; lm.needsUpdate = true;
+    const unknown = id === '?';
+    const fearless = !unknown && isFearless(s, f);
+    const face = cardFace(id, fac, {
+      power: unknown ? '?' : String(power(f)),
+      nerve: unknown ? '?' : fearless ? '∞' : String(Math.max(0, f.morale)),
+      stack: f.cards.length, wavering: !unknown && !fearless && f.cards.length === 1 && wavering(f),
+    });
+    const tm = tk.top.material as THREE.MeshStandardMaterial;
+    tm.map?.dispose(); tm.map = faceTexture(face); tm.needsUpdate = true;
+    void labelCanvas; void viewer;
     // stack height
-    tk.body.scale.y = 1 + (f.cards.length - 1) * 0.6;
+    tk.body.scale.y = 1 + (f.cards.length - 1) * 0.3; // a stack reads as a few cards piled up, not a block
     const h = (tk.body.geometry as THREE.CylinderGeometry).parameters.height * tk.body.scale.y;
     tk.body.position.y = h / 2;
-    tk.top.position.y = h + 0.005; tk.ring.position.y = h + 0.01; tk.label.position.y = h + 0.3; tk.label.position.z = TOKEN * 0.34 * (this.seat === 1 ? -1 : 1);
+    tk.top.position.y = h + 0.005;
     // cloak shimmer
     if (f.cloaked && !tk.cloak) {
       const m = cloakMat(); this.shaders.push(m);
-      tk.cloak = new THREE.Mesh(new THREE.CylinderGeometry(0.98, 1.0, 1.1, 4, 1, true), m);
-      tk.cloak.position.y = 0.55; tk.cloak.rotation.y = Math.PI / 4;
+      tk.cloak = new THREE.Mesh(new THREE.BoxGeometry(TOKEN_W * 1.04, 0.9, TOKEN * 1.04), m);
+      tk.cloak.position.y = 0.45;
       tk.group.add(tk.cloak);
     } else if (!f.cloaked && tk.cloak) { tk.group.remove(tk.cloak); tk.cloak = undefined; }
     (tk.top.material as THREE.MeshStandardMaterial).transparent = f.cloaked;
@@ -510,7 +572,7 @@ export class Board3D {
       this.overlays.add(m);
       return;
     }
-    const top = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({ map: tokenTexture(id, faction), transparent: true, opacity: 0.75 }));
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(TOKEN_W, TOKEN), new THREE.MeshBasicMaterial({ map: faceTexture(cardFace(id, faction, null)), transparent: true, opacity: 0.8 }));
     top.rotation.x = -Math.PI / 2;
     top.position.set(x, this.topY(p) + (this.occupied(p) ? 1.0 : 0.3), z);
     this.overlays.add(top);
