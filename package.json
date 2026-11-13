@@ -1,0 +1,28 @@
+{
+  "name": "shatterline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "tsx watch src/server/index.ts",
+    "build": "vite build && esbuild src/server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server.js",
+    "start": "node dist/server.js",
+    "sim": "tsx src/sim/run.ts",
+    "typecheck": "tsc --noEmit",
+    "art": "tsx scripts/gen-art.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/ws": "^8.18.2",
+    "concurrently": "^10.0.7",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8"
+  },
+  "dependencies": {
+    "ws": "^8.23.0"
+  }
+}
