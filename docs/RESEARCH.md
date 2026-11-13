@@ -592,3 +592,33 @@ and assumes the opponent plays nothing.
 - **Concord briefly had 4 faction rules.** Trimmed to two (Hold the Line + Drilled); Regiments and Shoulder to Shoulder were dropped.
 - **Thoughtstalk Warden cost 3 → 2.**
 - **Result:** archetypes 37–53%. Balanced decks: Concord 39, Brood 50, Hush 45.5. Morale 58–62% of Resolve lost, breaches about 30%.
+
+## 14. How established designers iterate (3 research agents, v0.6 process review)
+
+**Why:** our process had been "add a concept, eyeball the sim". Three agents looked at how
+established designers actually work. The outcome is DESIGN_PROCESS.md.
+
+**CCG designers (Brode, Dodds, Garfield, Rosewater, Gwent team)**
+- Hearthstone: a small team prototyped on paper and then in a fast internal build. Their rule was *iterate fast*: the first prototype is for finding the fun, not for balance. Dodds: new cards should "scare" the designer, so push mechanics far and then pull back. — https://www.gamedeveloper.com/design/-iterate-fast-and-other-design-lessons-learned-from-i-hearthstone-i- · https://www.pcgamer.com/hearthstones-eric-dodds-on-why-new-cards-need-to-scare-him/ · https://www.gamedeveloper.com/design/q-a-i-hearthstone-i-s-small-team-success-at-big-time-blizzard
+- Marvel Snap: Brode began from a target experience (a full CCG game in 3 minutes) and cut everything that didn't serve it (no attacking, no mana curve fiddling). Simultaneous turns were chosen to remove waiting. Cards start from a fantasy and the mechanics follow. — https://toucharcade.com/2023/05/05/marvel-snap-gdc-2023-talk-ben-brode-inspiration-design-complexity-iphone-android-youtube/ · https://www.dexerto.com/gaming/how-are-marvel-snap-cards-designed-ben-brode-breaks-down-dev-process-1983450/ · https://www.dexerto.com/gaming/ben-brode-details-marvel-snaps-unlikely-genesis-1979997/ · https://mobilegamer.biz/second-dinners-ben-brode-reveals-marvel-snaps-recipe-for-success-literally/ · https://www.gamedeveloper.com/game-platforms/designers-don-t-sleep-on-marvel-snap-s-simultaneous-turns
+- Garfield: the game must give a losing player reasons to keep playing. Luck and skill are both tools. — https://www.vice.com/en/article/an-interview-with-richard-garfield-creator-of-magic-the-gathering/ · https://www.tabletopgaming.co.uk/features/magic-the-gathering-creator-richard-garfield-on-the-making-of-the/
+- Rosewater (MTG "Making Magic"): complexity is a budget. Keep "new-player complexity" on commons low. Every mechanic must earn its place (lenticular design: simple to read, deep to master).
+
+**Board/wargame designers (Knizia, Chvátil, Stegmaier, Wehrle)**
+- Knizia: starts from a single core mechanism, playtests on paper constantly and throws most ideas away. Scoring tension is designed on purpose. — https://opinionatedgamers.com/2011/04/12/the-art-of-design-interviews-to-game-designers-6-%e2%80%93-reiner-knizia/
+- Wehrle: the simulation serves the experience. Rules model *the decisions the historical actors faced*, not physics. — https://mikkosgameblog.com/2017/11/cole-wehrle-interview/
+- Stegmaier: logs every playtest's feedback publicly and iterates against it. Uses blind playtests (testers who get only the rulebook) to find unclear rules.
+
+**Indie/digital (Mega Crit, Subset, LocalThunk, Meier, MDA, Cook)**
+- Slay the Spire: per-card pick rate and win-when-present from player telemetry drove balance. Outliers in either direction got changed. → our `--cards` report. — https://www.gdcvault.com/play/1025731/-Slay-the-Spire-Metrics · https://www.gamedeveloper.com/design/learn-i-slay-the-spire-i-s-metrics-driven-approach-to-game-balancing-at-gdc-2019
+- Into the Breach: cut systems until the core decision (perfect information, telegraphed threats) was obvious. Readability came first. — https://www.gamedeveloper.com/design/get-an-inside-look-at-the-making-of-i-into-the-breach-i-at-gdc-2019- · https://gamedeveloper.com/game-platforms/road-to-the-igf-subset-games-i-into-the-breach-i-
+- Balatro: one simple core (poker hands) with modifiers layered on top; the core was never touched. — https://blakecrosley.com/guides/design/balatro
+- Inscryption: jam-sized prototype first, built around one core idea. — https://www.gamedeveloper.com/design/how-game-jam-sacrifices-became-inscryption
+- Sid Meier: a game is a series of interesting decisions. A decision with an obvious answer isn't one. — https://gamedeveloper.com/design/gdc-2012-sid-meier-on-how-to-see-games-as-sets-of-interesting-decisions · https://www.gamedeveloper.com/design/designing-interesting-decisions-in-games-and-when-not-to-
+- MDA: design the mechanics to produce the target aesthetic (feeling), and measure the feeling, not the mechanic. — https://en.wikipedia.org/wiki/MDA_framework
+- Dan Cook: loops and arcs and skill atoms. Every action must give feedback the player can learn from. — https://lostgarden.com/2012/04/30/loops-and-arcs/ · https://lostgarden.com/2021/03/13/the-chemistry-of-game-design-2/
+- Mechabellum (closest genre peer: simultaneous hidden deployment, units don't move by hand): the meta is driven by clear unit counters and visible deployment reads. — https://en.wikipedia.org/wiki/Mechabellum
+
+**Gaps this found in our process:** no written target experience, multi-variable changes,
+metrics limited to win rate, no exit criteria, no A/B variants by default, no complexity
+budget, and treating the greedy AI's sim as truth. All of these are addressed in DESIGN_PROCESS.md.
