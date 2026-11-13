@@ -33,7 +33,7 @@
 - 14 Resolve, a 20-card deck, and a 5-card hand.
 
 **Each round**
-1. **Command:** gain `round + 1` (max 7). **Draw** 2.
+1. **Command:** gain `round + 1` (max 7). **Underdog:** the player behind on Resolve gets initiative and, if behind by 3+, +1 Command. **Draw** 2.
 2. **Orders (hidden, simultaneous):**
    - Place unit cards on any **empty cell of your side**. A Back cell needs your Front cell in that column filled, either already or by these same orders.
    - Or place onto **your own unit** to stack it: up to 3 cards (Swarm up to 5). Power and Nerve add up, and only the top card's text is active.

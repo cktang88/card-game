@@ -119,7 +119,7 @@ function refresh() {
   setResolve('me-res', P.resolve);
   setResolve('opp-res', O.resolve);
   $('round').textContent = `Round ${s.round}/${RULES.maxRounds}`;
-  $('stakes').textContent = `Stakes ×${s.stakes}${s.pendingEscalations ? ' → ×' + s.stakes * 2 ** s.pendingEscalations : ''}${s.initiative === me ? ' · You have initiative' : ''}`;
+  $('stakes').textContent = `Stakes ×${s.stakes}${s.pendingEscalations ? ' → ×' + s.stakes * 2 ** s.pendingEscalations : ''}${s.initiative === me ? ' · You have initiative' : ''}${s.players[1 - me].resolve - s.players[me].resolve >= 3 && RULES.underdogCp ? ' · Underdog +' + RULES.underdogCp + ' Command' : ''}`;
   const spent = pending.reduce((a, d) => a + def(P.hand.find((h) => h.uid === d.uid)!).cost, 0);
   $('cp-n').textContent = String(P.cp - spent);
   const esc = $<HTMLInputElement>('escalate');

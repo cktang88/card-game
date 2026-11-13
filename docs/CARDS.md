@@ -68,11 +68,11 @@ _Swarm & evolve. Fearless while linked; every bite makes them bigger._
 | **Lashworm Burrower** | 2 | 2 | 3 | 2 | Beast | Hunter: bursts up under the enemy Back row first. | Pops up behind their line to hit their backline. | apex, synapse |
 | **Acidbelly Spitter** | 3 | 2 | 3 | 3 | Beast | Lethal: its acid deals damage, not Shock. | Kills the unbreakables: structures, officers, armour. | apex |
 | **Scythe Ravager** | 4 | 4 | 4 | melee | Beast | Cleave: also strikes the enemies beside its target. | Drop it into the middle of their line. | apex, tide |
-| **The Gorgemaw** | 6 | 7 | 5 | melee | Beast | Drain: heals 2 every time it strikes. | The apex: wins a straight fight against anything. | apex |
+| **The Gorgemaw** | 5 | 7 | 5 | melee | Beast | Drain: heals 2 every time it strikes. | The apex: wins a straight fight against anything. | apex |
 | **Thoughtstalk Warden** | 2 | 2 | 5 | melee | Synapse | Synapse: Brood beside, in front of or behind it are Fearless. | Makes the swarm around it unbreakable. Kill it and they can panic again. | synapse, tide |
 | **Throat-Sac Howler** | 2 | 2 | 3 | melee | Beast | Terror: +2 against units at half Nerve or less. | Finishes off wavering units. | synapse |
 | **Nightmaw Leech** | 3 | 2 | 3 | 2 | Beast | Infect: each enemy it breaks rises as a Skitterling in your line. | Turns their losses into your swarm. | synapse, tide |
-| **Overmind Aspect** | 5 | 3 | 5 | 2 | Synapse | Synapse. Linked Brood strike +1. | The army-wide upgrade; the enemy must go through the swarm to reach it. | synapse |
+| **Overmind Aspect** | 4 | 3 | 5 | 2 | Synapse | Synapse. Linked Brood strike +1. | The army-wide upgrade; the enemy must go through the swarm to reach it. | synapse |
 | **Frenzy Pheromone** | 2 | – | – | – | Tactic | Target ally and the allies around it strike +2 this round. | Swarm-wide surge for the decisive round. | tide, apex |
 | **Psychic Scream** | 2 | – | – | – | Tactic | Enemy Front units in target ally’s column and the columns beside it take 2 Shock. | Shatters whatever is pressed against your swarm. | synapse |
 

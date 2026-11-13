@@ -33,7 +33,8 @@ export const RULES = {
   terrainColumns: 0,    // 0 = auto (≈ width / 2.5)
   cohesionMax: 2,
   formations: true,     // column hands: the higher hand holds the Edge (+1 strikes) in that column
-  edge: 1,      // Nerve regained per round from allies around a unit
+  edge: 1,              // strike bonus in a column where you hold the Edge
+  underdogCp: 1,        // extra Command next round for the player behind on Resolve by ≥ 3
 };
 export const cpForRound = (round: number) => Math.min(round + 1, RULES.cpCap);
 
@@ -727,7 +728,7 @@ function nextRound(s: GameState) {
   while (s.pendingEscalations > 0) { s.stakes = Math.min(RULES.maxStakes, s.stakes * 2); s.pendingEscalations--; }
   if (s.round === RULES.maxRounds) s.stakes = Math.min(RULES.maxStakes, s.stakes * 2);
   for (const p of [0, 1] as PlayerId[]) {
-    s.players[p].cp = cpForRound(s.round);
+    s.players[p].cp = cpForRound(s.round) + (s.players[other(p)].resolve - s.players[p].resolve >= 3 ? RULES.underdogCp : 0);
     for (let i = 0; i < RULES.drawPerRound; i++) draw(s, p);
   }
   s.phase = 'orders';

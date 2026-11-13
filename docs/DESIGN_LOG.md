@@ -50,3 +50,23 @@ may say more about the AI than the cards.
 - **Hypothesis:** the effect size is right but the timing is wrong. At 4 CP it lands a round late, after the lines have already set.
 - **Result (2× N=40):** dread 47/45, Herald played 79%, wins 51/47. Knives 43/39, phantom 51/48. Brood synapse 30/40 and apex 38/35 are now the clear bottom.
 - **Decision:** KEEP. Lesson: when an effect is the right size but underperforms, try cost/timing before magnitude.
+
+## 5. Brood Gorgemaw: cost 6 → 5 (KEPT)
+- **Hypothesis:** at 31% win-when-played, Brood's big finisher arrives too late (cost 6 means round 5 at the earliest) to save a losing line.
+- **Result (2× N=40):** Gorgemaw 45/46% when played, apex 44/46.
+- **Decision:** KEEP.
+
+## 6. Overmind Aspect: cost 5 → 4 (KEPT, weak effect)
+- **Result:** Overseer 41/38% when played (was 36), synapse 41/38. Within noise. Kept because it didn't hurt anything.
+- **Follow-up:** the synapse archetype's payoff ("linked Brood strike +1") may be too subtle to matter. Revisit with a card-text change, not another cost change.
+
+## 7. Comeback lever: Underdog Command (KEPT at +1)
+- **Hypothesis:** the comeback rate (22–24%) misses the 25% target because the losing side falls behind on board and can never re-contest. Extra Command next round for whoever is ≥3 Resolve behind gives them a real counter-push without erasing the lead.
+- **Change:** `RULES.underdogCp` (A/B via `--rule=underdogCp=N`).
+- **Result:** +1 → comeback 25/26%, archetypes 38–55. +2 → comeback 28/26%, but every archetype gets squeezed toward 45%. That's rubber-banding that hides skill differences, which goes against pillar 5.
+- **Decision:** KEEP +1. Complexity budget unchanged: merged with the existing "player behind gets initiative" into a single **Underdog** rule, shown in the HUD ("Underdog +1 Command").
+
+## Status after #1–7
+Passing: length, morale, seat, card outliers (mostly), dead cards, comeback (borderline).
+Still failing: knives (~38–44) and synapse (~40–46) sit at the bottom edge, and bastion is around 42–45.
+Next: knives' payoff (v_needle and v_knives are both low), then the synapse text change.
