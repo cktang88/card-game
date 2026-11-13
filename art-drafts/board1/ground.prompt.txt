@@ -1,0 +1,3 @@
+model: openai/gpt-image-1-mini
+
+Top-down orthographic view straight down onto a war-torn meadow battlefield, painted as a traditional oil painting with visible impasto brushstrokes: muted olive and sage green grass in patches, trampled muddy earth paths, shallow shell craters, wheel ruts, scattered small stones, soft natural daylight, no buildings, no people, no units, no vehicles, no text, even overall tone with no strong focal point so it works as a ground texture, flat top-down with no horizon and no perspective.

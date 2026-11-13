@@ -206,3 +206,16 @@ No copyrighted reference images were downloaded or used as inputs.
   - Brood Heart needed a retry. Mini ignored "no creatures", so a creature still stands in front of the citadel.
 
 **TODO when credits are topped up:** redo b_spitter, b_howler, b_overseer, b_scream and b_hq on `gpt-image-2.6-sunburst`, using the subjects already in `cards.ts`.
+
+## board1: painted battlefield textures
+- **Feedback:** "Board gfx looks like pixel Minecraft while the cards are realistic." The cells were flat-shaded boxes with a procedural texture, cone grass tufts and low-poly rocks.
+- **Generated with `gpt-image-1-mini`** ($0.044 total; sunburst was refused on the remaining balance). All four were approved first pass:
+  - `ground`: a top-down oil-painted war-torn meadow with craters, ruts and pebbles.
+  - `sky`: an overcast horizon with smoke columns and distant ruined spires.
+  - `tile_grass` and `tile_ruins`: tileable painted tiles, checked 2×2 for seams.
+- **Applied in `board3d.ts`:**
+  - The painted ground is mirror-tiled out to the horizon, and the sky is the scene background, with fog matched to its horizon colour.
+  - Cells are thin painted plates with fine brass edge lines; Ridge plates are slightly raised and warmer.
+  - The trench is painted earth.
+  - The low-poly rocks and shrubs, the cone grass tufts and the barbed-wire tori were removed.
+  - Exposure and bloom were lowered and the palette muted to sit with the card art.

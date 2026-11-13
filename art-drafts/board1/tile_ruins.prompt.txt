@@ -1,0 +1,3 @@
+model: openai/gpt-image-1-mini
+
+Seamless tileable square texture, top-down flat view of rubble-strewn ground painted as a traditional oil painting: broken grey stone blocks, cracked concrete slabs, dust and a few tufts of grass between them, soft daylight, visible impasto brushstrokes, uniform coverage edge to edge, no focal point, no border, no text.

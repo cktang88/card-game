@@ -1,0 +1,3 @@
+model: openai/gpt-image-1-mini
+
+Seamless tileable square texture, top-down flat view of a patch of battlefield ground painted as a traditional oil painting: muted sage and olive green grass mixed with patches of brown earth and a few small pebbles, soft daylight, visible impasto brushstrokes, uniform coverage edge to edge, no focal point, no border, no shadows from objects, no text.

@@ -18,6 +18,11 @@ const FRAME = (look: string) => `An ornate trading-card frame border, portrait c
 const BADGE = (look: string) => `A single game UI badge centered in the frame, occupying about 70% of the image, with a smooth empty flat center plate where a number will later be placed (leave the center plain and blank). ${look} ${GREEN}`;
 
 const ITEMS: Record<string, { prompt: string; size: string }> = {
+  // ── battlefield (no chroma key) ──
+  ground: { size: '1536x1024', prompt: 'Top-down orthographic view straight down onto a war-torn meadow battlefield, painted as a traditional oil painting with visible impasto brushstrokes: muted olive and sage green grass in patches, trampled muddy earth paths, shallow shell craters, wheel ruts, scattered small stones, soft natural daylight, no buildings, no people, no units, no vehicles, no text, even overall tone with no strong focal point so it works as a ground texture, flat top-down with no horizon and no perspective.' },
+  sky: { size: '1536x1024', prompt: 'A wide painted landscape horizon for a grimdark military science-fiction battlefield, traditional oil painting with visible brushstrokes: the lower third is distant rolling green fields and hazy hills with faint smoke columns and silhouettes of ruined towers far away, the upper two thirds is a soft overcast sky with warm light breaking through clouds, muted sage, ochre and blue-grey palette, calm, no foreground objects, no people, no text.' },
+  tile_grass: { size: '1024x1024', prompt: 'Seamless tileable square texture, top-down flat view of a patch of battlefield ground painted as a traditional oil painting: muted sage and olive green grass mixed with patches of brown earth and a few small pebbles, soft daylight, visible impasto brushstrokes, uniform coverage edge to edge, no focal point, no border, no shadows from objects, no text.' },
+  tile_ruins: { size: '1024x1024', prompt: 'Seamless tileable square texture, top-down flat view of rubble-strewn ground painted as a traditional oil painting: broken grey stone blocks, cracked concrete slabs, dust and a few tufts of grass between them, soft daylight, visible impasto brushstrokes, uniform coverage edge to edge, no focal point, no border, no text.' },
   frame_concord: { size: '1024x1536', prompt: FRAME('riveted gunmetal and blackened steel plates with brass trim and rivets, olive-drab enamel panels, chipped red signal-stripe chevrons at the corners, stencil-scratched, oil and soot stains, industrial war-machine aesthetic.') },
   frame_brood: { size: '1024x1536', prompt: FRAME('sleek alien border made of glossy iridescent black-green beetle-carapace plates with clean sharp edges, thin glowing venom-green seams between the plates, elegant curved blade-like spines at the corners, polished and sculptural, minimal fine detail, no slime, no fungus.') },
   frame_hush: { size: '1024x1536', prompt: FRAME('smooth black obsidian and dark-teal lacquer border with cracked white porcelain inlays repaired with thin glowing violet kintsugi seams, subtle violet light-lines, elegant, quiet, ritualistic.') },
@@ -31,7 +36,7 @@ mkdirSync(outDir, { recursive: true });
 for (const id of ids) {
   const it = ITEMS[id];
   if (!it) { console.error('unknown', id); continue; }
-  const prompt = `${it.prompt} ${STYLE}`;
+  const prompt = id.startsWith('frame_') || id.startsWith('badge_') ? `${it.prompt} ${STYLE}` : it.prompt;
   const res = await fetch('https://openrouter.ai/api/v1/images', {
     method: 'POST',
     headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },

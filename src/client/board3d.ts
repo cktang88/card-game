@@ -214,8 +214,9 @@ export class Board3D {
     el.appendChild(this.renderer.domElement);
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
     this.scene.background = skyTexture();
-    this.scene.fog = new THREE.Fog('#b9c7b0', 26, 70);
-    this.renderer.toneMappingExposure = 1.25;
+    new THREE.TextureLoader().load('/board/sky.webp', (t) => { t.colorSpace = THREE.SRGBColorSpace; this.scene.background = t; });
+    this.scene.fog = new THREE.Fog('#8f957a', 30, 75);
+    this.renderer.toneMappingExposure = 1.0;
     this.scene.add(this.root);
     this.root.add(this.overlays, this.fx, this.links);
 
@@ -228,17 +229,15 @@ export class Board3D {
     rim.position.set(6, 6, -10);
     this.scene.add(hemi, key, rim);
 
-    // ground plane
-    // endless field to the horizon
-    const gtex = groundTexture().clone(); gtex.needsUpdate = true; gtex.repeat.set(60, 60);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(160, 64), new THREE.MeshStandardMaterial({ color: '#5f8a45', roughness: 1, map: gtex }));
+    // painted battlefield ground out to the horizon (oil-painted texture, mirrored-tiled)
+    const gtex = paintedTex('/board/ground.webp', 14, 14);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(160, 64), new THREE.MeshStandardMaterial({ color: '#b9c2a6', roughness: 1, map: gtex }));
     ground.rotation.x = -Math.PI / 2; ground.position.y = -0.01; ground.receiveShadow = true;
     this.scene.add(ground);
-    this.scene.add(scenery());
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(512, 512), 0.55, 0.6, 0.82));
+    this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(512, 512), 0.4, 0.5, 0.92));
     this.composer.addPass(new OutputPass());
 
     window.addEventListener('resize', () => this.resize());
@@ -274,47 +273,38 @@ export class Board3D {
     for (const o of this.boardObjs) this.root.remove(o);
     this.boardObjs = []; this.tiles.clear(); this.tileTop.clear();
     const add = (o: THREE.Object3D) => { this.root.add(o); this.boardObjs.push(o); };
+    const grassTex = paintedTex('/board/tile_grass.webp', 1, 1);
+    const ruinsTex = paintedTex('/board/tile_ruins.webp', 1, 1);
+    const sideMat = new THREE.MeshStandardMaterial({ color: '#3d3222', roughness: 1 });
     for (const pos of allCells()) {
       const t: Terrain = s.terrain[pos.col];
-      const h = BASE_H + (t === 'ridge' ? 0.32 : 0);
-      const geo = new THREE.BoxGeometry(CELL * 0.92, h, 1.62);
+      const h = 0.07 + (t === 'ridge' ? 0.18 : 0);
+      const geo = new THREE.BoxGeometry(CELL * 0.93, h, 1.66);
       geo.translate(0, h / 2, 0);
       const back = pos.row === 0 || pos.row === 3;
-      const base = t === 'ruins' ? '#8a867a' : t === 'ridge' ? '#8fae5a' : back ? '#5f8a45' : '#6c9a4c';
-      const mat = new THREE.MeshStandardMaterial({ color: base, map: groundTexture(), roughness: 0.95, metalness: 0.04 });
-      const m = new THREE.Mesh(geo, mat);
+      const tint = t === 'ridge' ? '#e8e2c4' : back ? '#bcc4a8' : '#d2d8bf';
+      const top = new THREE.MeshStandardMaterial({ color: tint, map: t === 'ruins' ? ruinsTex : grassTex, roughness: 0.95 });
+      // box faces: +x, -x, +y (top), -y, +z, -z
+      const m = new THREE.Mesh(geo, [sideMat, sideMat, top, sideMat, sideMat, sideMat]);
       const [x, z] = hexXZ(pos);
       m.position.set(x, 0, z);
-      m.castShadow = true; m.receiveShadow = true;
+      m.receiveShadow = true;
       m.userData.pos = pos;
       add(m);
       this.tiles.set(key(pos), m);
       this.tileTop.set(key(pos), h);
-      if (t !== 'ruins') {
-        const tuftMat = new THREE.MeshStandardMaterial({ color: t === 'ridge' ? '#a8c46a' : '#7fae55', roughness: 1 });
-        for (let i = 0; i < 5; i++) {
-          const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.16 + Math.random() * 0.12, 4), tuftMat);
-          const ex = (Math.random() < 0.5 ? -1 : 1) * (0.62 + Math.random() * 0.15), ez = (Math.random() - 0.5) * 1.4;
-          tuft.position.set(x + (i % 2 ? ex : (Math.random() - 0.5) * 1.3), h + 0.08, z + (i % 2 ? ez : (Math.random() < 0.5 ? -0.72 : 0.72)));
-          add(tuft);
-        }
-      }
-      if (t === 'ruins') {
-        for (let i = 0; i < 3; i++) {
-          const b = new THREE.Mesh(new THREE.BoxGeometry(0.16 + Math.random() * 0.2, 0.12 + Math.random() * 0.3, 0.16), mat);
-          b.position.set(x + (i - 1) * 0.6, h + 0.08, z + (i % 2 ? 0.66 : -0.66));
-          b.rotation.y = Math.random() * 3; b.castShadow = true;
-          add(b);
-        }
-      }
+      // fine brass edge line around each cell
+      const w = CELL * 0.93 / 2, d = 0.83;
+      const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-w, 0, -d), new THREE.Vector3(w, 0, -d), new THREE.Vector3(w, 0, d), new THREE.Vector3(-w, 0, d)]),
+        new THREE.LineBasicMaterial({ color: t === 'ridge' ? '#f3d999' : '#c9a25a', transparent: true, opacity: 0.55 }));
+      edge.position.set(x, h + 0.004, z);
+      add(edge);
     }
     // the trench: no-man's-land between the two front rows
-    const trench = new THREE.Mesh(new THREE.BoxGeometry(CELL * COLS + 0.6, 0.06, 0.55), new THREE.MeshStandardMaterial({ color: '#3a2c1e', roughness: 1 }));
-    trench.position.set(0, 0.03, 0); add(trench);
-    for (let i = 0; i < COLS * 2 - 1; i++) {
-      const wire = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.012, 4, 10), new THREE.MeshStandardMaterial({ color: '#4a4038', metalness: 0.6, roughness: 0.5 }));
-      wire.position.set((i - (COLS - 1)) * CELL / 2, 0.16, 0); wire.rotation.y = Math.PI / 2; add(wire);
-    }
+    const trenchTex = paintedTex('/board/ground.webp', COLS, 0.4);
+    const trench = new THREE.Mesh(new THREE.PlaneGeometry(CELL * COLS + 0.6, 0.62), new THREE.MeshStandardMaterial({ color: '#9a7e5c', map: trenchTex, roughness: 1 }));
+    trench.rotation.x = -Math.PI / 2; trench.position.set(0, 0.012, 0); add(trench);
     // terrain labels at both ends of each special column
     for (let c = 0; c < COLS; c++) {
       const t = s.terrain[c];
@@ -675,6 +665,20 @@ function animateSmoke(p: THREE.Points, t: number) {
     a.setXYZ(i, Math.sin(seeds[i] * 40) * 0.4 + Math.sin(t + i) * 0.1 * k, 0.4 + k * 2.2, Math.cos(seeds[i] * 40) * 0.4);
   }
   a.needsUpdate = true;
+}
+
+/** Load a painted texture with mirrored repeat (hides tile seams). */
+const texCache = new Map<string, THREE.Texture>();
+function paintedTex(url: string, rx: number, ry: number): THREE.Texture {
+  const k = `${url}|${rx}|${ry}`;
+  if (texCache.has(k)) return texCache.get(k)!;
+  const t = new THREE.TextureLoader().load(url);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.MirroredRepeatWrapping;
+  t.repeat.set(rx, ry);
+  t.anisotropy = 8;
+  texCache.set(k, t);
+  return t;
 }
 
 /** Vertical sky gradient: pale horizon to soft blue-grey above. */

@@ -1,0 +1,3 @@
+model: openai/gpt-image-1-mini
+
+A wide painted landscape horizon for a grimdark military science-fiction battlefield, traditional oil painting with visible brushstrokes: the lower third is distant rolling green fields and hazy hills with faint smoke columns and silhouettes of ruined towers far away, the upper two thirds is a soft overcast sky with warm light breaking through clouds, muted sage, ochre and blue-grey palette, calm, no foreground objects, no people, no text.
