@@ -127,11 +127,28 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 .esc { font-family: var(--display); font-size: 13px; letter-spacing: .1em; color: #e8c27a; display: flex; gap: 8px; align-items: center; justify-content: center; text-transform: uppercase; cursor: pointer; text-shadow: 0 1px 2px #000; }
 .esc input { accent-color: var(--blood); width: 16px; height: 16px; }
 @media (max-width: 700px) {
-  #bottombar { grid-template-columns: 1fr auto; }
-  #cp { width: 54px; height: 54px; position: absolute; left: 8px; bottom: 132px; }
+  /* phone portrait: a full-width scrolling hand of small cards, with the action buttons in a row under it */
+  #bottombar { grid-template-columns: 1fr; gap: 4px; padding: 6px 8px 10px; padding-bottom: 10px !important; }
+  #cp { width: 54px; height: 54px; position: absolute; left: 8px; bottom: calc(100% + 4px); }
   #cp-n { font-size: 24px; }
-  #hand { min-height: 104px; max-height: 104px; justify-content: flex-start; overflow-x: auto; overflow-y: visible; padding-top: 0; }
+  #hand { min-height: 126px; max-height: 126px; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; padding: 38px 12px 0; gap: 6px; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: none; }
+  #hand::-webkit-scrollbar { display: none; }
+  #hand .card { --cw: 84px; margin: 0 -4px; }
+  #hand .card:hover { --lift: -6px; --sc: 1.05; }
+  #hand .card.sel { --lift: -24px; --sc: 1.1; }
+  #actions { flex-direction: row; align-items: center; justify-content: space-between; min-width: 0; gap: 8px; }
+  #actions .btn { padding: 10px 14px; font-size: 12px; flex: 1 1 0; }
+  .esc { font-size: 11px; flex: 1 1 0; justify-content: flex-start; }
+  .esc small { display: none; }
   #hint { top: 92px; font-size: 12px; }
+  #topbar { padding: 8px 10px 22px; gap: 6px; }
+  .fname { font-size: 10.5px; letter-spacing: .06em; }
+  .pip { width: 11px; height: 16px; }
+  .resolve .n { margin: 0 4px; font-size: 13px; }
+  .center { padding: 4px 4px 6px; }
+  #round { font-size: 15px; letter-spacing: .08em; }
+  #stakes { font-size: 9.5px; letter-spacing: .06em; max-width: 150px; }
+  #btn-log { top: auto; bottom: 186px; right: 10px; }
 }
 
 /* ─────────── cards ─────────── */
@@ -247,11 +264,13 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 #inspect .detail .close { margin-top: 18px; font-size: 12px; font-style: italic; color: var(--dim); }
 #preview .meta .hint { font-size: 11.5px; font-style: italic; color: var(--dim); }
 #preview { position: absolute; left: 16px; top: 92px; pointer-events: none; z-index: 20; }
+#preview .card.big { --cw: min(250px, 34vh); }
 #preview .meta { margin-top: 18px; width: 250px; padding: 10px 14px; font-size: 13.5px; color: #d6c8a8; line-height: 1.35; }
 #preview .meta .cls { font-family: var(--display); font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass); }
 #preview .meta p { margin: 6px 0 0; }
 #preview .meta .niche { font-style: italic; color: #efe1bf; }
 @media (max-width: 800px) { #preview { display: none; } }
+@media (max-height: 520px) { #preview .meta { display: none; } }
 
 #gameover { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse, rgba(0, 0, 0, .55), rgba(0, 0, 0, .85)); }
 #gameover .box { padding: 34px 48px; text-align: center; }
@@ -277,3 +296,11 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 .esc span { display: flex; flex-direction: column; line-height: 1.1; }
 .esc small { font-family: var(--body, serif); font-size: 10.5px; letter-spacing: .02em; text-transform: none; color: #cdbf9f; font-style: italic; }
 .glory { font-family: var(--display); letter-spacing: .18em; text-transform: uppercase; color: var(--brass); font-size: 13px; margin-bottom: 8px; text-align: center; }
+
+/* short landscape screens (phones on their side): smaller Command badge so it clears the card preview */
+@media (min-width: 701px) and (max-height: 520px) {
+  #cp { left: 10px; bottom: 6px; width: 62px; height: 62px; }
+  #cp-n { font-size: 26px; }
+  #cp small { font-size: 8px; }
+  #hand { justify-content: center; }
+}

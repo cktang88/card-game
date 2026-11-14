@@ -70,20 +70,27 @@ let pending: DeployOrder[] = [];
 let selected: number | null = null;   // uid
 let locked = false;
 let playing = false;
+let gameOverShown = false;   // Glory is banked once per game
 const queue: { s: GameState; ev: GameEvent[] }[] = [];
 
 function startGame(c: Controller) {
   ctl = c;
   me = c.seat;
+  state = null; pending = []; selected = null; locked = false; playing = false; gameOverShown = false; queue.length = 0;
   $('menu').classList.add('hidden');
   $('game').classList.remove('hidden');
   board = new Board3D($('board'));
   board.setSeat(me);
   board.onFloat = floatText;
   c.onState = (s, ev) => { queue.push({ s, ev }); pump(); };
-  c.onInfo = (m) => log(`⚠ ${m}`);
+  c.onInfo = (m) => {
+    log(`⚠ ${m}`);
+    // a rejected Lock In must not leave the button stuck on "Waiting…"
+    if (locked && state && state.phase !== 'over' && !/disconnect|closed/i.test(m)) { locked = false; refresh(); }
+  };
   board.renderer.domElement.addEventListener('click', onBoardClick);
   board.renderer.domElement.addEventListener('mousemove', onBoardHover);
+  board.renderer.domElement.addEventListener('mouseleave', () => showPreview(null));
   board.renderer.domElement.addEventListener('contextmenu', (ev) => {
     ev.preventDefault();
     if (!state) return;
@@ -99,13 +106,13 @@ async function pump() {
   while (queue.length) {
     const { s, ev } = queue.shift()!;
     me = ctl.seat;
-    if (state && ev.length) await playback(state, s, ev);
+    if (state && ev.length) { try { await playback(state, s, ev); } catch (err) { console.warn('playback failed', err); banner(''); } }
     const freshRound = !state || ev.length > 0 || s.round !== state.round || s.phase === 'over';
     state = s;
     if (freshRound) { pending = []; selected = null; locked = false; }
     board.sync(s, me);
     refresh();
-    if (s.phase === 'over') showGameOver(s);
+    if (s.phase === 'over' && !gameOverShown) showGameOver(s);
   }
   playing = false;
 }
@@ -120,7 +127,7 @@ function refresh() {
   setResolve('me-res', P.resolve);
   setResolve('opp-res', O.resolve);
   $('round').textContent = `Round ${s.round}/${RULES.maxRounds}`;
-  $('stakes').textContent = `Glory at stake: ${s.stakes}${s.pendingEscalations ? ' → ' + s.stakes * 2 ** s.pendingEscalations + ' next round' : ''}${s.initiative === me ? ' · You have initiative' : ''}${s.players[1 - me].resolve - s.players[me].resolve >= 3 && RULES.underdogCp ? ' · Underdog +' + RULES.underdogCp + ' Command' : ''}`;
+  $('stakes').textContent = `Glory at stake: ${s.stakes}${s.pendingEscalations ? ' → ' + Math.min(RULES.maxStakes, s.stakes * 2 ** s.pendingEscalations) + ' next round' : ''}${s.initiative === me ? ' · You have initiative' : ''}${s.round === RULES.maxRounds ? ' · Final round: stakes double' : ''}${s.players[1 - me].resolve - s.players[me].resolve >= 3 && RULES.underdogCp ? ' · Underdog +' + RULES.underdogCp + ' Command' : ''}`;
   const spent = pending.reduce((a, d) => a + def(P.hand.find((h) => h.uid === d.uid)!).cost, 0);
   $('cp-n').textContent = String(P.cp - spent);
   const esc = $<HTMLInputElement>('escalate');
@@ -137,7 +144,7 @@ function refresh() {
   const prevHint = hintEl.textContent;
   hintEl.textContent = locked ? 'Orders locked. Waiting for the enemy…'
     : oppLocked ? 'The enemy has locked in their orders.'
-    : selected !== null ? 'Click a highlighted hex to place it (or click the card again to cancel).'
+    : selected !== null ? 'Click a highlighted cell to place it (or click the card again to cancel).'
     : 'Place cards on your Front or Back row. Tags show what happens if the enemy adds nothing. Then Lock In.';
   if (hintEl.textContent !== prevHint) { hintEl.classList.remove('fade'); void hintEl.offsetWidth; hintEl.classList.add('fade'); }
 }
@@ -197,7 +204,7 @@ function drawOverlays() {
       const owner = (fid: number) => state!.formations.find((f) => f.fid === fid)?.owner ?? sim.formations.find((f) => f.fid === fid)?.owner;
       const seen = new Set<number>();
       const evs = sim.events.filter((e) => {
-        if (e.t === 'strike' || e.t === 'breach' || e.t === 'flank' || e.t === 'edge') return true;
+        if (e.t === 'strike') return true;
         if (e.t === 'move' && !seen.has(e.fid)) { seen.add(e.fid); return true; }
         return false;
       });
@@ -269,9 +276,11 @@ function formationDetail(f: Formation): string {
 }
 
 function onLongPress(el: HTMLElement, fn: () => void) {
-  let t = 0;
-  el.addEventListener('touchstart', () => { t = window.setTimeout(fn, 480); }, { passive: true });
+  let t = 0, fired = false;
+  el.addEventListener('touchstart', () => { fired = false; t = window.setTimeout(() => { fired = true; fn(); }, 480); }, { passive: true });
   for (const ev of ['touchend', 'touchmove', 'touchcancel']) el.addEventListener(ev, () => clearTimeout(t));
+  // the click that follows a long-press must not also select/cancel the card
+  el.addEventListener('click', (e) => { if (fired) { fired = false; e.stopImmediatePropagation(); } }, true);
 }
 
 let previewKey: string | null = null;
@@ -297,7 +306,7 @@ $('btn-retreat').onclick = () => {
 };
 
 // ───────────────────────── playback ─────────────────────────
-const STEP_NAMES: Record<string, string> = { reveal: 'REVEAL', breach: 'BREACH', strike: 'STRIKE', fallout: 'FALLOUT', upkeep: 'UPKEEP' };
+const STEP_NAMES: Record<string, string> = { reveal: 'REVEAL', strike: 'STRIKE', fallout: 'FALLOUT', upkeep: 'UPKEEP' };
 
 async function playback(prev: GameState, next: GameState, ev: GameEvent[]) {
   board.clearOverlays();
@@ -313,6 +322,7 @@ async function playback(prev: GameState, next: GameState, ev: GameEvent[]) {
     const e = ev[i];
     if (e.t === 'step') {
       if (e.step === 'upkeep' || e.step === 'fallout') { i++; continue; }
+      if (!STEP_NAMES[e.step]) { i++; continue; }
       banner(STEP_NAMES[e.step]);
       await wait(550);
       i++; continue;
@@ -341,9 +351,6 @@ async function handleMinor(e: GameEvent, next: GameState, nameOf: (fid: number) 
       else await board.animateDeploy({ ...f, pos: e.pos }, next, me);
       break;
     }
-    case 'breach': board.float(e.pos, 'BREACH!', '#ffd27a'); log(`${e.owner === me ? 'You break' : 'Enemy breaks'} through in column ${e.pos.col + 1}`); break;
-    case 'flank': board.float(e.pos, `FLANKED +${e.amount}`, '#ff7a5a'); break;
-    case 'edge': log(`${e.owner === me ? 'You hold' : 'Enemy holds'} the Edge in column ${e.col + 1}`); break;
     case 'heal': board.float(e.pos, `+${e.amount} ♥`, '#7aff8a'); break;
     case 'tactic': board.float(e.pos, CARD_BY_ID[e.id].name, '#ffe9b0'); board.burst(e.pos, '#fff0c0', 18); log(`${e.owner === me ? 'You' : 'Enemy'} played ${CARD_BY_ID[e.id].name}`); await sleep(350); break;
     case 'move': await board.animateMove(e.fid, e.to); break;
@@ -396,6 +403,7 @@ function glory(): number { try { return Number(localStorage.getItem('sl.glory') 
 function addGlory(n: number): number { const t = glory() + n; try { localStorage.setItem('sl.glory', String(t)); } catch { /* private mode */ } return t; }
 
 function showGameOver(s: GameState) {
+  gameOverShown = true;
   const won = s.winner === me, draw = s.winner === -1;
   $('go-title').textContent = draw ? 'STALEMATE' : won ? 'VICTORY' : 'DEFEAT';
   $('go-title').style.color = draw ? '#ccc' : won ? '#e0a03c' : '#c8452f';
