@@ -341,6 +341,8 @@ function checkWin(s: GameState) {
 
 function end(s: GameState, w: -1 | PlayerId, reason: string) {
   s.winner = w; s.endReason = reason; s.phase = 'over';
+  // An Escalate declared in the round that ends the game still counts (otherwise it is a silent trap).
+  while (s.pendingEscalations > 0) { s.stakes = Math.min(RULES.maxStakes, s.stakes * 2); s.pendingEscalations--; }
   s.log.push(`GAME OVER: ${w === -1 ? 'draw' : 'P' + w + ' wins'} (${reason}), stakes ${s.stakes}`);
 }
 
