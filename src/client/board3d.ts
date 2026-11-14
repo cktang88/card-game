@@ -166,7 +166,7 @@ function glowTexture(): THREE.Texture {
   const g = c.getContext('2d')!;
   g.filter = 'blur(14px)'; g.fillStyle = '#fff';
   g.beginPath(); g.roundRect(26, 26, 76, 140, 10); g.fill();
-  glowTex = new THREE.CanvasTexture(c);
+  glowTex = new THREE.CanvasTexture(c); glowTex.userData.shared = true;
   return glowTex;
 }
 
@@ -241,7 +241,7 @@ function groundTexture(): THREE.Texture {
     for (let k = 0; k < 5; k++) { x += (rnd() - 0.5) * 30; y += (rnd() - 0.5) * 30; g.lineTo(x, y); }
     g.stroke();
   }
-  groundTex = new THREE.CanvasTexture(c);
+  groundTex = new THREE.CanvasTexture(c); groundTex.userData.shared = true;
   groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
   groundTex.colorSpace = THREE.SRGBColorSpace;
   return groundTex;
@@ -260,6 +260,8 @@ interface Token {
   evolve?: THREE.Mesh;
   sig: string;
   pos: Pos;
+  evolveGrow?: number;
+  src?: { f: Formation; s: GameState; viewer: PlayerId };
 }
 
 interface Tween { t0: number; dur: number; fn: (k: number) => void; done?: () => void }
@@ -283,6 +285,26 @@ export class Board3D {
   raycaster = new THREE.Raycaster();
   onFloat?: (x: number, y: number, text: string, color: string) => void;
   private relayRings = new Map<string, THREE.Mesh>();
+  private overlayOps: (() => void)[] = [];   // replayed after a layout switch so highlights/ghosts/intents don't go stale
+  private imgSeen = 0;
+
+  /** Remove an object from the scene and free its GPU resources (shared textures/geometries are kept). */
+  drop(o: THREE.Object3D) {
+    o.removeFromParent();
+    const dead = new Set<THREE.Material>();
+    o.traverse((c) => {
+      const m = c as THREE.Mesh;
+      if (m.geometry && !(c instanceof THREE.Sprite) && !m.geometry.userData.shared) m.geometry.dispose();
+      const mats = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
+      for (const mt of mats) {
+        const map = (mt as THREE.MeshBasicMaterial).map;
+        if (map && !map.userData.shared) map.dispose();
+        mt.dispose(); dead.add(mt);
+      }
+    });
+    if (this.shaders.length) this.shaders = this.shaders.filter((sh) => !dead.has(sh));
+  }
+  private clearGroup(g: THREE.Group) { for (const c of [...g.children]) this.drop(c); }
 
   constructor(private el: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -333,9 +355,12 @@ export class Board3D {
       setLayout(kind);
       imgVersion++; // force card faces to redraw at the new size
       this.terrainSig = '';
-      for (const tk of this.tokens.values()) this.root.remove(tk.group);
+      for (const tk of this.tokens.values()) this.drop(tk.group);
       this.tokens.clear();
       if (this.last) this.sync(this.last[0], this.last[1]);
+      this.clearGroup(this.overlays); // positions/sizes were built for the old layout: rebuild them
+      const ops = this.overlayOps; this.overlayOps = [];
+      for (const op of ops) op();
     }
     this.fitCamera(w, h);
   }
@@ -344,7 +369,7 @@ export class Board3D {
   /** Auto-fit: the board fills the screen between the top HUD and the hand strip (~90% of the area). */
   fitCamera(w: number, h: number) {
     const cam = this.camera;
-    const portrait = h > w;
+    const portrait = layoutKind === 'port';
     const pitch = portrait ? 1.25 : 0.86;           // radians above horizontal: steep, so far rows don't shrink much
     const topPx = portrait ? 104 : 60, bottomPx = portrait ? 196 : 112, sidePx = portrait ? 4 : 190; // landscape: HUD lives at the sides
     const xMax = 1 - (2 * sidePx) / w;
@@ -364,22 +389,26 @@ export class Board3D {
       tz -= ((y0 + y1) / 2 - (yTop + yBot) / 2) * dist * 0.15; // board too high on screen → look farther out
       tz = Math.max(-6, Math.min(6, tz)); dist = Math.max(8, Math.min(60, dist));
     }
+    cam.position.set(0, Math.sin(pitch) * dist, tz + Math.cos(pitch) * dist);
+    cam.lookAt(0, 0, tz); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
     (this.scene.fog as THREE.Fog).near = dist * 1.4; (this.scene.fog as THREE.Fog).far = dist * 3.5;
   }
 
   setSeat(seat: PlayerId) {
     this.seat = seat;
     this.root.rotation.y = seat === 1 ? Math.PI : 0;
+    this.root.updateMatrixWorld(true);
+    this.terrainSig = ''; // terrain labels depend on the seat
   }
 
   // ───────── board: the battle line ─────────
   private terrainSig = '';
   private boardObjs: THREE.Object3D[] = [];
   buildTiles(s: GameState) {
-    const sig = s.terrain.join(',');
+    const sig = s.terrain.join(',') + '|' + this.seat + '|' + layoutKind;
     if (sig === this.terrainSig) return;
     this.terrainSig = sig;
-    for (const o of this.boardObjs) this.root.remove(o);
+    for (const o of this.boardObjs) this.drop(o);
     this.boardObjs = []; this.tiles.clear(); this.tileTop.clear();
     const add = (o: THREE.Object3D) => { this.root.add(o); this.boardObjs.push(o); };
     const grassTex = paintedTex('/board/tile_grass.webp', 1, 1);
@@ -415,7 +444,7 @@ export class Board3D {
     const trench = new THREE.Mesh(new THREE.PlaneGeometry(CELL * COLS + 0.2, GAP + 0.06), new THREE.MeshStandardMaterial({ color: '#9a7e5c', map: trenchTex, roughness: 1 }));
     trench.rotation.x = -Math.PI / 2; trench.position.set(0, 0.012, 0); add(trench);
     // terrain labels at both ends of each special column
-    for (let c = 0; c < COLS; c++) {
+    for (let c = 0; c < COLS && RULES.terrainColumns >= 0; c++) { // terrain labels: only when the ruleset has terrain
       const t = s.terrain[c];
       if (t === 'open') continue;
       for (const z of [this.seat === 0 ? 4.25 : -4.25]) {
@@ -438,7 +467,7 @@ export class Board3D {
       if (!tk) tk = this.makeToken(f, s, viewer);
       this.updateToken(tk, f, s, viewer);
     }
-    for (const [fid, tk] of this.tokens) if (!seen.has(fid)) { this.root.remove(tk.group); this.tokens.delete(fid); }
+    for (const [fid, tk] of this.tokens) if (!seen.has(fid)) { this.drop(tk.group); this.tokens.delete(fid); }
     this.drawLinks(s);
     this.drawHands(s);
   }
@@ -447,7 +476,7 @@ export class Board3D {
   /** Column hand names along the trench (yours on your side, theirs on theirs). */
   private drawHands(s: GameState) {
     if (!this.hands.parent) this.root.add(this.hands);
-    this.hands.clear();
+    this.clearGroup(this.hands);
     if (!RULES.formations) return; // column hands cut in v0.7
     for (let c = 0; c < COLS; c++) {
       for (const p of [0, 1] as PlayerId[]) {
@@ -488,7 +517,7 @@ export class Board3D {
   private updateToken(tk: Token, f: Formation, s: GameState, viewer: PlayerId) {
     const [x, z] = hexXZ(f.pos);
     tk.group.position.set(x, this.topY(f.pos), z);
-    tk.pos = f.pos;
+    tk.pos = f.pos; tk.src = { f, s, viewer };
     const id = lead(f)?.id ?? '?';
     const fac = s.players[f.owner].faction;
     const sig = [id, power(f), f.morale, f.cards.length, f.cloaked, isFearless(s, f), lead(f)?.grow ?? 0, badgesReady(), imgVersion].join('|');
@@ -515,28 +544,30 @@ export class Board3D {
       tk.cloak = new THREE.Mesh(new THREE.BoxGeometry(TOKEN_W * 1.04, 0.9, TOKEN * 1.04), m);
       tk.cloak.position.y = 0.45;
       tk.group.add(tk.cloak);
-    } else if (!f.cloaked && tk.cloak) { tk.group.remove(tk.cloak); tk.cloak = undefined; }
+    } else if (!f.cloaked && tk.cloak) { this.drop(tk.cloak); tk.cloak = undefined; }
     (tk.top.material as THREE.MeshStandardMaterial).transparent = f.cloaked;
     (tk.top.material as THREE.MeshStandardMaterial).opacity = f.cloaked ? (f.owner === viewer ? 0.6 : 0.25) : 1;
     // broken smoke
     const shaky = id !== '?' && !isFearless(s, f) && wavering(f);
     if (shaky && !tk.smoke) { tk.smoke = makeSmoke(); tk.group.add(tk.smoke); }
-    else if (!shaky && tk.smoke) { tk.group.remove(tk.smoke); tk.smoke = undefined; }
-    (tk.body.material as THREE.MeshStandardMaterial).emissive = new THREE.Color(shaky ? '#3a0e08' : '#000');
+    else if (!shaky && tk.smoke) { this.drop(tk.smoke); tk.smoke = undefined; }
+    (tk.body.material as THREE.MeshStandardMaterial).emissive.set(shaky ? '#3a0e08' : '#000');
     // evolve glow
     const grow = lead(f)?.grow ?? 0;
+    if (grow > 0 && tk.evolve && tk.evolveGrow !== grow) { this.drop(tk.evolve); tk.evolve = undefined; }
     if (grow > 0 && !tk.evolve) {
+      tk.evolveGrow = grow;
       const m = ringMat(new THREE.Color('#8fff4a')); m.uniforms.uSpeed.value = 3; this.shaders.push(m);
       tk.evolve = new THREE.Mesh(new THREE.RingGeometry(0.78, 0.9 + grow * 0.05, 24), m);
       tk.evolve.rotation.x = -Math.PI / 2; tk.evolve.position.y = 0.02;
       tk.group.add(tk.evolve);
-    } else if (grow === 0 && tk.evolve) { tk.group.remove(tk.evolve); tk.evolve = undefined; }
+    } else if (grow === 0 && tk.evolve) { this.drop(tk.evolve); tk.evolve = undefined; }
     tk.group.userData.shaken = shaky;
     void leadDef;
   }
 
   private drawLinks(s: GameState) {
-    this.links.clear();
+    this.clearGroup(this.links);
     for (const f of s.formations) {
       if (f.cards[0]?.id === '?') continue;
       const src = linkSource(s, f);
@@ -552,10 +583,13 @@ export class Board3D {
   }
 
   // ───────── overlays ─────────
-  clearOverlays() { this.overlays.clear(); }
+  clearOverlays() { this.clearGroup(this.overlays); this.overlayOps = []; }
 
   /** Predicted outcome tag on a unit while planning (e.g. "ROUTS", "−3 NERVE"). */
   outcome(p: Pos, text: string, kind: 'bad' | 'good' | 'info') {
+    this.overlayOps.push(() => this.outcome0(p, text, kind)); this.outcome0(p, text, kind);
+  }
+  private outcome0(p: Pos, text: string, kind: 'bad' | 'good' | 'info') {
     const [x, z] = hexXZ(p);
     const c = document.createElement('canvas'); c.width = 512; c.height = 112;
     const g = c.getContext('2d')!;
@@ -575,6 +609,9 @@ export class Board3D {
   }
 
   highlight(hexes: Pos[], color = '#e0a03c') {
+    this.overlayOps.push(() => this.highlight0(hexes, color)); this.highlight0(hexes, color);
+  }
+  private highlight0(hexes: Pos[], color: string) {
     for (const p of hexes) {
       const [x, z] = hexXZ(p);
       const m = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.12, 4, 1, Math.PI / 4), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, depthWrite: false }));
@@ -585,6 +622,9 @@ export class Board3D {
   }
 
   ghost(p: Pos, id: string, faction: Faction, isTacticCard: boolean) {
+    this.overlayOps.push(() => this.ghost0(p, id, faction, isTacticCard)); this.ghost0(p, id, faction, isTacticCard);
+  }
+  private ghost0(p: Pos, id: string, faction: Faction, isTacticCard: boolean) {
     const [x, z] = hexXZ(p);
     if (isTacticCard) {
       const m = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.06, 6, 24), new THREE.MeshBasicMaterial({ color: '#ffd27a' }));
@@ -602,6 +642,9 @@ export class Board3D {
 
   /** Draw intent arrows from simulated strike/move events. */
   intents(events: GameEvent[], ownerOf: (fid: number) => PlayerId | undefined, viewer: PlayerId) {
+    this.overlayOps.push(() => this.intents0(events, ownerOf, viewer)); this.intents0(events, ownerOf, viewer);
+  }
+  private intents0(events: GameEvent[], ownerOf: (fid: number) => PlayerId | undefined, viewer: PlayerId) {
     for (const e of events) {
       if (e.t === 'move') {
         const [x0, z0] = hexXZ(e.from), [x1, z1] = hexXZ(e.to);
@@ -610,7 +653,7 @@ export class Board3D {
         l.computeLineDistances();
         this.overlays.add(l);
         this.overlays.add(arrowHead(new THREE.Vector3(x0, 0.12 + this.topY(e.from), z0), new THREE.Vector3(x1, this.topY(e.to) + 0.12, z1), ownerOf(e.fid) === viewer ? '#f3d38a' : '#ff8a7a', 0.18));
-      } else if (e.t === 'edge') {
+      } else if (e.t === 'edge' && RULES.formations) { // edge strips cut in v0.7
         const [x] = hexXZ({ col: e.col, row: 0 });
         const mine = e.owner === viewer;
         const strip = new THREE.Mesh(new THREE.PlaneGeometry(CELL * 0.86, 0.5), new THREE.MeshBasicMaterial({ color: mine ? '#ffcf6a' : '#ff5a40', transparent: true, opacity: 0.55, depthWrite: false }));
@@ -619,7 +662,7 @@ export class Board3D {
         const lbl = textSprite('EDGE +1', mine ? '#ffe39a' : '#ff8a6a');
         lbl.scale.set(1.3, 0.17, 1); lbl.position.set(x, 0.7, 0);
         this.overlays.add(lbl);
-      } else if (e.t === 'breach') {
+      } else if (e.t === 'breach' && (RULES.flank > 0 || RULES.flood > 0 || RULES.breachDrain > 0)) {
         // gold chevrons charging into the empty enemy column
         const [x, z] = hexXZ(e.pos);
         const dir = e.pos.row >= 2 ? -1 : 1;
@@ -629,7 +672,7 @@ export class Board3D {
           ch.position.set(x, 0.5, z + dir * (1.0 + k * 0.42));
           this.overlays.add(ch);
         }
-      } else if (e.t === 'flank') {
+      } else if (e.t === 'flank' && (RULES.flank > 0 || RULES.flood > 0)) {
         // red brackets on both sides of a flanked unit
         const [x, z] = hexXZ(e.pos);
         for (const sx of [-1, 1]) {
@@ -677,6 +720,7 @@ export class Board3D {
   screenOf(p: Pos, yOff = 1.0): [number, number] {
     const [x, z] = hexXZ(p);
     const v = new THREE.Vector3(x, this.topY(p) + yOff, z);
+    this.root.updateWorldMatrix(true, false);
     this.root.localToWorld(v);
     v.project(this.camera);
     const r = this.renderer.domElement.getBoundingClientRect();
@@ -704,7 +748,7 @@ export class Board3D {
   async animateStrike(e: Extract<GameEvent, { t: 'strike' }>) {
     const [x0, z0] = hexXZ(e.from), [x1, z1] = hexXZ(e.to);
     const a = new THREE.Vector3(x0, this.topY(e.from) + 0.6, z0), b = new THREE.Vector3(x1, this.topY(e.to) + 0.5, z1);
-    const melee = Math.hypot(x1 - x0, z1 - z0) < 2.0;
+    const melee = Math.hypot(x1 - x0, z1 - z0) < ROW_D * 2 + GAP + 0.1; // adjacent rows across the trench count as melee in the current layout
     const tk = this.tokens.get(e.fid);
     if (melee && tk) {
       const p0 = tk.group.position.clone();
@@ -716,7 +760,7 @@ export class Board3D {
       const mid = a.clone().lerp(b, 0.5); mid.y += 1 + a.distanceTo(b) * 0.2;
       const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
       await this.tween(320, (k) => bolt.position.copy(curve.getPoint(k)));
-      this.fx.remove(bolt);
+      this.drop(bolt);
     }
     this.burst(e.to, e.lethal ? '#ff4a2a' : '#ffb84a');
   }
@@ -734,7 +778,7 @@ export class Board3D {
       const a = g.getAttribute('position') as THREE.BufferAttribute;
       for (let i = 0; i < n; i++) { a.setXYZ(i, x + vel[i].x * k * 0.5, this.topY(p) + 0.5 + vel[i].y * k * 0.5 - 2 * k * k, z + vel[i].z * k * 0.5); }
       a.needsUpdate = true; (pts.material as THREE.PointsMaterial).opacity = 1 - k;
-    }, done: () => this.fx.remove(pts) });
+    }, done: () => this.drop(pts) });
   }
 
   async animateRemove(fid: number) {
@@ -742,7 +786,8 @@ export class Board3D {
     if (!tk) return;
     const y0 = tk.group.position.y;
     await this.tween(380, (k) => { tk.group.position.y = y0 - k * 0.6; tk.group.scale.setScalar(1 - k * 0.6); });
-    this.root.remove(tk.group); this.tokens.delete(fid);
+    if (this.tokens.get(fid) === tk) this.tokens.delete(fid);
+    this.drop(tk.group);
   }
 
   async animateDeploy(f: Formation, s: GameState, viewer: PlayerId) {
@@ -762,12 +807,16 @@ export class Board3D {
     this.clock.update();
     const t = this.clock.getElapsed();
     const now = performance.now();
-    this.tweens = this.tweens.filter((tw) => {
+    const cur = this.tweens; this.tweens = [];
+    for (const tw of cur) {
       const k = Math.min(1, (now - tw.t0) / tw.dur);
-      tw.fn(k);
-      if (k >= 1) { tw.done?.(); return false; }
-      return true;
-    });
+      try { tw.fn(k); } catch (err) { console.error(err); try { tw.done?.(); } catch { /* ignore */ } continue; }
+      if (k >= 1) { try { tw.done?.(); } catch (err) { console.error(err); } } else this.tweens.push(tw);
+    }
+    if (this.imgSeen !== imgVersion) { // art/frame images finished loading: redraw card faces (no add/remove of tokens)
+      this.imgSeen = imgVersion;
+      for (const tk of this.tokens.values()) if (tk.src) this.updateToken(tk, tk.src.f, tk.src.s, tk.src.viewer);
+    }
     for (const m of this.shaders) if (m.uniforms.uTime) m.uniforms.uTime.value = t;
     for (const tk of this.tokens.values()) {
       if (tk.smoke) animateSmoke(tk.smoke, t);
@@ -815,7 +864,7 @@ function paintedTex(url: string, rx: number, ry: number): THREE.Texture {
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.MirroredRepeatWrapping;
   t.repeat.set(rx, ry);
-  t.anisotropy = 8;
+  t.anisotropy = 8; t.userData.shared = true;
   texCache.set(k, t);
   return t;
 }
