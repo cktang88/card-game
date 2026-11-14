@@ -12,3 +12,6 @@ export type ServerMsg =
   | { t: 'state'; state: GameState; events: GameEvent[] }
   | { t: 'error'; msg: string }
   | { t: 'opponentLeft' };
+
+/** Largest client message the server accepts (bytes). Real messages are well under 1 KB. */
+export const MAX_CLIENT_BYTES = 4096;
