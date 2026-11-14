@@ -23,6 +23,7 @@
           <div id="arch-pick" class="arch-pick"></div>
         </div>
         <div class="modes">
+          <div id="glory-total" class="glory"></div>
           <button id="btn-ai" class="btn primary">Play vs AI</button>
           <button id="btn-host" class="btn">Host Duel</button>
           <div class="join">
@@ -39,7 +40,7 @@
             <li>Units never move. Each strikes <b>straight across its column</b>: the enemy Front, or the enemy Back if the Front is empty. Ranged units in the Back fire over your line.</li>
             <li>Strikes deal <b>Shock</b> to Nerve; <b>Lethal</b> strikes wound Power.</li>
             <li>At 0 Nerve a unit <b>breaks</b>: it <b>routs back to your hand</b>, the units around it panic (1 Shock), and you lose 1 Resolve per card. At 0 Power it is <b>killed</b> for good. Break the enemy army: reduce it to 0 Resolve.</li>
-            <li><b>Escalate</b> doubles the stakes of the match; <b>Retreat</b> concedes at the current stakes.</li>
+            <li>Every match is worth <b>Glory</b> (your running score). <b>Escalate</b> (once per game) doubles the Glory at stake from next round; <b>Retreat</b> concedes now, losing only the current stakes. Bluff, or cut your losses.</li>
           </ul>
         </details>
       </div>
@@ -65,7 +66,7 @@
         <div id="cp"><span id="cp-n">2</span><small>Command</small></div>
         <div id="hand"></div>
         <div id="actions">
-          <label class="esc"><input type="checkbox" id="escalate" /> Escalate</label>
+          <label class="esc" title="Doubles the Glory this match is worth: win and you gain more, lose and you lose more. Once per game. The doubling takes effect at the start of next round, so the enemy can still Retreat at the old stakes."><input type="checkbox" id="escalate" /> <span>Escalate<small id="esc-sub">double the Glory at stake</small></span></label>
           <button id="btn-lock" class="btn primary">Lock In</button>
           <button id="btn-retreat" class="btn ghost">Retreat</button>
         </div>

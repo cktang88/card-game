@@ -13,6 +13,7 @@ let faction: Faction = 'concord';
 let arch: string | undefined;
 
 function renderMenu() {
+  $('glory-total').textContent = `Glory: ${glory()}`;
   const fp = $('faction-pick');
   fp.innerHTML = '';
   for (const f of Object.keys(FACTION_INFO) as Faction[]) {
@@ -119,13 +120,14 @@ function refresh() {
   setResolve('me-res', P.resolve);
   setResolve('opp-res', O.resolve);
   $('round').textContent = `Round ${s.round}/${RULES.maxRounds}`;
-  $('stakes').textContent = `Stakes ×${s.stakes}${s.pendingEscalations ? ' → ×' + s.stakes * 2 ** s.pendingEscalations : ''}${s.initiative === me ? ' · You have initiative' : ''}${s.players[1 - me].resolve - s.players[me].resolve >= 3 && RULES.underdogCp ? ' · Underdog +' + RULES.underdogCp + ' Command' : ''}`;
+  $('stakes').textContent = `Glory at stake: ${s.stakes}${s.pendingEscalations ? ' → ' + s.stakes * 2 ** s.pendingEscalations + ' next round' : ''}${s.initiative === me ? ' · You have initiative' : ''}${s.players[1 - me].resolve - s.players[me].resolve >= 3 && RULES.underdogCp ? ' · Underdog +' + RULES.underdogCp + ' Command' : ''}`;
   const spent = pending.reduce((a, d) => a + def(P.hand.find((h) => h.uid === d.uid)!).cost, 0);
   $('cp-n').textContent = String(P.cp - spent);
   const esc = $<HTMLInputElement>('escalate');
   (esc.closest('label') as HTMLElement).style.display = RULES.maxStakes > 1 ? '' : 'none';
   esc.disabled = P.escalateUsed || locked;
   if (P.escalateUsed) esc.checked = false;
+  $('esc-sub').textContent = P.escalateUsed ? 'already used this game' : `stakes ${s.stakes} → ${Math.min(RULES.maxStakes, s.stakes * 2)} Glory`;
   $<HTMLButtonElement>('btn-lock').disabled = locked || s.phase === 'over';
   $<HTMLButtonElement>('btn-lock').textContent = locked ? 'Waiting…' : 'Lock In';
   renderHand(P.cp - spent);
@@ -136,7 +138,7 @@ function refresh() {
   hintEl.textContent = locked ? 'Orders locked. Waiting for the enemy…'
     : oppLocked ? 'The enemy has locked in their orders.'
     : selected !== null ? 'Click a highlighted hex to place it (or click the card again to cancel).'
-    : 'Place cards on your Front or Back row. Arrows show what will happen. Then Lock In.';
+    : 'Place cards on your Front or Back row. Tags show what happens if the enemy adds nothing. Then Lock In.';
   if (hintEl.textContent !== prevHint) { hintEl.classList.remove('fade'); void hintEl.offsetWidth; hintEl.classList.add('fade'); }
 }
 
@@ -148,6 +150,7 @@ function setResolve(id: string, n: number) {
 
 function renderHand(cpLeft: number) {
   const h = $('hand');
+  if (h.querySelector('.card:hover')) showPreview(null); // the hovered card is about to be replaced without a mouseleave
   h.innerHTML = '';
   if (!state) return;
   for (const c of state.players[me].hand) {
@@ -199,6 +202,23 @@ function drawOverlays() {
         return false;
       });
       board.intents(evs, owner, me);
+      // Predicted outcomes: everything but the enemy's hidden placements is known, so show it.
+      const gone = new Map<number, 'rout' | 'kill'>();
+      for (const e of sim.events) { if (e.t === 'break') gone.set(e.fid, 'rout'); else if (e.t === 'destroy') gone.set(e.fid, 'kill'); }
+      const posOf = new Map<number, Pos>();
+      for (const e of sim.events) if (e.t === 'deploy') posOf.set(e.fid, e.pos);
+      for (const f of state.formations) posOf.set(f.fid, f.pos);
+      for (const [fid, pos] of posOf) {
+        const before = state.formations.find((f) => f.fid === fid);
+        const after = sim.formations.find((f) => f.fid === fid);
+        const mine = (before ?? after)?.owner === me || (!before && !after);
+        if (before && before.owner !== me && lead(before)?.id === '?') continue; // cloaked: we don't actually know its stats
+        const g = gone.get(fid);
+        if (g) { board.outcome(pos, g === 'rout' ? 'ROUTS' : 'KILLED', mine ? 'bad' : 'good'); continue; }
+        if (before && after && after.morale < before.morale && !lead(before)?.id.startsWith('?')) {
+          board.outcome(pos, `−${before.morale - after.morale} NERVE`, 'info');
+        }
+      }
     } catch (err) { console.warn('preview failed', err); }
   }
   for (const p of pending) {
@@ -230,7 +250,7 @@ function onBoardHover(ev: MouseEvent) {
   const p = board.pick(ev.clientX, ev.clientY);
   const f = p ? formationAt(state, p) : undefined;
   if (f && lead(f)) showPreview(lead(f).id, formationInfo(f));
-  else if (!document.querySelector('#hand .card:hover')) showPreview(null);
+  else showPreview(null); // the pointer is on the board, so any hand-card preview is stale
 }
 
 function formationInfo(f: Formation): string {
@@ -273,7 +293,7 @@ $('btn-lock').onclick = () => {
 $('btn-log').onclick = () => $('log').classList.toggle('open');
 $('btn-retreat').onclick = () => {
   if (!state || state.phase === 'over') return;
-  if (confirm(`Sound the retreat and concede at stakes ×${state.stakes}?`)) ctl.retreat();
+  if (confirm(`Sound the retreat? You concede now and lose only the current ${state.stakes} Glory.`)) ctl.retreat();
 };
 
 // ───────────────────────── playback ─────────────────────────
@@ -371,11 +391,17 @@ function log(t: string) {
   while (l.childElementCount > 80) l.lastChild?.remove();
 }
 
+/** Glory: the running score Escalate raises the stakes on (kept in this browser). */
+function glory(): number { try { return Number(localStorage.getItem('sl.glory') ?? 0) || 0; } catch { return 0; } }
+function addGlory(n: number): number { const t = glory() + n; try { localStorage.setItem('sl.glory', String(t)); } catch { /* private mode */ } return t; }
+
 function showGameOver(s: GameState) {
   const won = s.winner === me, draw = s.winner === -1;
   $('go-title').textContent = draw ? 'STALEMATE' : won ? 'VICTORY' : 'DEFEAT';
   $('go-title').style.color = draw ? '#ccc' : won ? '#e0a03c' : '#c8452f';
-  $('go-sub').textContent = `${s.endReason} · stakes ×${s.stakes} · ${won ? '+' : draw ? '±' : '−'}${draw ? 0 : s.stakes} Glory`;
+  const delta = draw ? 0 : won ? s.stakes : -s.stakes;
+  const total = addGlory(delta);
+  $('go-sub').textContent = `${s.endReason} · ${delta >= 0 ? '+' : '−'}${Math.abs(delta)} Glory (total ${total})`;
   $('gameover').classList.remove('hidden');
 }
 
@@ -384,5 +410,7 @@ void key;
 // Debug/test hook: lets automated tests find legal placements & screen positions.
 (window as unknown as { __sl: unknown }).__sl = {
   legal: (uid: number) => legalHexes(uid).map((p) => board.screenOf(p, 0.1)),
+  units: () => state?.formations.filter((f) => f.cards.length).map((f) => { const [x, y] = board.screenOf(f.pos, 0.15); return { id: lead(f).id, owner: f.owner, x, y }; }) ?? [],
+  preview: () => document.getElementById('preview')?.textContent ?? '',
   hand: () => state?.players[me].hand.map((c) => ({ uid: c.uid, id: c.id, tactic: isTactic(def(c)), cost: def(c).cost })) ?? [],
 };

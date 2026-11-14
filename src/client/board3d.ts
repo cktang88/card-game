@@ -554,6 +554,26 @@ export class Board3D {
   // ───────── overlays ─────────
   clearOverlays() { this.overlays.clear(); }
 
+  /** Predicted outcome tag on a unit while planning (e.g. "ROUTS", "−3 NERVE"). */
+  outcome(p: Pos, text: string, kind: 'bad' | 'good' | 'info') {
+    const [x, z] = hexXZ(p);
+    const c = document.createElement('canvas'); c.width = 512; c.height = 112;
+    const g = c.getContext('2d')!;
+    const bg = kind === 'bad' ? 'rgba(120,16,10,.92)' : kind === 'good' ? 'rgba(120,84,14,.92)' : 'rgba(20,20,24,.82)';
+    const fg = kind === 'bad' ? '#ffd9cf' : kind === 'good' ? '#fff0c2' : '#e8e2d0';
+    g.font = '800 58px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const w = Math.min(500, g.measureText(text).width + 70);
+    g.fillStyle = bg; g.strokeStyle = kind === 'bad' ? '#ff7a5a' : kind === 'good' ? '#f3d999' : 'rgba(243,217,153,.5)'; g.lineWidth = 5;
+    g.beginPath(); g.roundRect(256 - w / 2, 10, w, 92, 46); g.fill(); g.stroke();
+    g.fillStyle = fg; g.fillText(text, 256, 58);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }));
+    sp.scale.set(TOKEN_W * 1.1, TOKEN_W * 1.1 * (112 / 512), 1);
+    sp.position.set(x, this.topY(p) + 0.6, z);
+    sp.renderOrder = 30;
+    this.overlays.add(sp);
+  }
+
   highlight(hexes: Pos[], color = '#e0a03c') {
     for (const p of hexes) {
       const [x, z] = hexXZ(p);
@@ -639,8 +659,11 @@ export class Board3D {
     const r = this.renderer.domElement.getBoundingClientRect();
     const v = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     this.raycaster.setFromCamera(v, this.camera);
-    const objs: THREE.Object3D[] = [...this.tiles.values(), ...[...this.tokens.values()].map((t) => t.group)];
-    const hit = this.raycaster.intersectObjects(objs, true)[0];
+    // Only solid things are pickable: tiles and the unit cards themselves. Smoke particles, glows and
+    // hidden labels used to be hit first (Points have a 1-unit hit radius), so hovering an enemy card
+    // could select the smoking unit in front of it.
+    const objs: THREE.Object3D[] = [...this.tiles.values(), ...[...this.tokens.values()].flatMap((t) => [t.top, t.body])];
+    const hit = this.raycaster.intersectObjects(objs, false)[0];
     if (!hit) return null;
     let o: THREE.Object3D | null = hit.object;
     while (o) {
@@ -748,7 +771,7 @@ export class Board3D {
     for (const m of this.shaders) if (m.uniforms.uTime) m.uniforms.uTime.value = t;
     for (const tk of this.tokens.values()) {
       if (tk.smoke) animateSmoke(tk.smoke, t);
-      tk.top.rotation.z = tk.group.userData.shaken ? Math.sin(t * 30) * 0.03 : 0;
+      tk.top.rotation.z = 0; // (shaken units used to wiggle: removed, it read as a glitch)
     }
     for (const l of this.links.children) ((l as THREE.Line).material as THREE.LineDashedMaterial & { dashOffset?: number });
     this.composer.render();

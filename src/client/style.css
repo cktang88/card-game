@@ -246,7 +246,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 #inspect .detail b { color: var(--brass-hi); }
 #inspect .detail .close { margin-top: 18px; font-size: 12px; font-style: italic; color: var(--dim); }
 #preview .meta .hint { font-size: 11.5px; font-style: italic; color: var(--dim); }
-#preview { position: absolute; left: 16px; top: 92px; pointer-events: none; }
+#preview { position: absolute; left: 16px; top: 92px; pointer-events: none; z-index: 20; }
 #preview .meta { margin-top: 18px; width: 250px; padding: 10px 14px; font-size: 13.5px; color: #d6c8a8; line-height: 1.35; }
 #preview .meta .cls { font-family: var(--display); font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass); }
 #preview .meta p { margin: 6px 0 0; }
@@ -268,8 +268,12 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 /* Gwent-style landscape layout: the board takes the full height in the middle; Command sits
    on the left edge and the action buttons on the right edge, in the space beside the board. */
 @media (min-width: 701px) and (min-aspect-ratio: 1/1) {
-  #cp { position: fixed; left: 34px; top: 50%; transform: translateY(-50%); width: 104px; height: 104px; }
+  #cp { position: fixed; left: 28px; bottom: 26px; width: 96px; height: 96px; } /* bottom-left corner: never over the card preview */
   #cp-n { font-size: 40px; }
   #actions { position: fixed; right: 22px; top: 50%; transform: translateY(-50%); }
   #bottombar { grid-template-columns: 1fr; }
 }
+
+.esc span { display: flex; flex-direction: column; line-height: 1.1; }
+.esc small { font-family: var(--body, serif); font-size: 10.5px; letter-spacing: .02em; text-transform: none; color: #cdbf9f; font-style: italic; }
+.glory { font-family: var(--display); letter-spacing: .18em; text-transform: uppercase; color: var(--brass); font-size: 13px; margin-bottom: 8px; text-align: center; }
