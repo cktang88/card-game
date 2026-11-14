@@ -499,7 +499,11 @@ function fallout(s: GameState) {
       }
     }
     checkWin(s);
-    if (s.winner !== null) return;
+    if (s.winner !== null) {
+      // the game just ended: panic may have wiped out Fearless units this very pass; never leave empty formations on the board
+      s.formations = s.formations.filter((f) => f.cards.length > 0);
+      return;
+    }
   }
 }
 
@@ -538,6 +542,12 @@ export function canDeployAt(s: GameState, p: PlayerId, card: CardDef, pos: Pos, 
 }
 
 export function validateOrders(s: GameState, p: PlayerId, o: Orders): string | null {
+  // untrusted input (server): reject malformed shapes before they can corrupt the board (NaN / fractional cells etc.)
+  if (p !== 0 && p !== 1) return 'bad player';
+  if (!o || !Array.isArray(o.deploys)) return 'bad orders';
+  for (const d of o.deploys) {
+    if (!d || !d.pos || !Number.isInteger(d.uid) || !Number.isInteger(d.pos.col) || !Number.isInteger(d.pos.row)) return 'bad deploy';
+  }
   const pl = s.players[p];
   let total = 0;
   const used = new Set<number>();
@@ -565,6 +575,7 @@ export function validateOrders(s: GameState, p: PlayerId, o: Orders): string | n
 // ───────────────────────── apply ─────────────────────────
 export function apply(s: GameState, a: Action): string | null {
   if (s.phase === 'over') return 'game over';
+  if (a.player !== 0 && a.player !== 1) return 'bad player';
   if (a.type === 'retreat') {
     s.events = [];
     s.log.push(`P${a.player} sounds the retreat`);
@@ -790,7 +801,7 @@ export function viewFor(s: GameState, viewer: PlayerId): GameState {
   opp.orders = opp.orders ? { deploys: [], escalate: false } : null;
   for (const p of v.players) p.deck = p.deck.map(() => ({ uid: -1, id: '?', dmg: 0 }));
   for (const f of v.formations)
-    if (f.owner !== viewer && f.cloaked) { f.cards = [{ uid: -1, id: '?', dmg: 0 }]; f.morale = -1; }
+    if (f.owner !== viewer && f.cloaked) { f.cards = [{ uid: -1, id: '?', dmg: 0 }]; f.morale = -1; f.buffs = { power: 0, silenced: false }; }
   for (const e of v.events) if (e.t === 'deploy' && e.owner !== viewer && v.players[e.owner].faction === 'hush') e.id = '?';
   v.log = [];
   v.rng = 0;
