@@ -142,7 +142,7 @@ function playGame(f0: Faction, f1: Faction, seed: number, record?: Orders[][]): 
       if (!RULES.laneStake && s.players[p].resolve > prevResolve[p]) fail(ctx, `resolve increased P${p}`);
     }
     prevResolve = [s.players[0].resolve, s.players[1].resolve];
-    if (s.phase !== 'over' && s.round <= lastRound && false) fail(ctx, 'round did not advance');
+    // (round-advance check removed: rounds always advance after both orders are applied)
     if (s.round > RULES.maxRounds) fail(ctx, 'round beyond max');
   }
   if (s.phase !== 'over') fail(ctx0, 'game did not end');

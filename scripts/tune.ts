@@ -44,23 +44,25 @@ const side = (e: Entry, p: Profile): Side => ({ f: e.f, label: e.label, deck: p.
 
 /** Win rate of entry e playing profile p against every other-faction entry's current profile (paired seeds). */
 async function score(e: Entry, p: Profile, gpo = GPO, seedBase = 0): Promise<number> {
-  const jobs = [];
+  const jobs = [], meIsA: boolean[] = [];
   for (const o of entries) {
     if (o.f === e.f) continue;
     for (let g = 0; g < gpo; g++) {
       const me = side(e, p), them = side(o, prof[o.label]);
       const seed = 50_000 + seedBase + g * 7919 + o.label.length * 131 + entries.indexOf(o) * 977;
       jobs.push(g % 2 ? { a: them, b: me, seed } : { a: me, b: them, seed });
+      meIsA.push(g % 2 === 0);
     }
   }
   const res = await runJobs(jobs);
   let w = 0;
-  res.forEach((r, k) => { if ((r.winner === 0 && k % 2 === 0) || (r.winner === 1 && k % 2 === 1)) w++; });
+  res.forEach((r, k) => { if (r.winner === (meIsA[k] ? 0 : 1)) w++; }); // (parity of k only matched the seat when gpo was even)
   return w / res.length;
 }
 
 let rngState = 12345;
-const rnd = () => { rngState = (rngState * 1103515245 + 12345) & 0x7fffffff; return rngState / 0x7fffffff; };
+// Math.imul: the plain product exceeds 2^53 and lost its low bits.
+const rnd = () => { rngState = (Math.imul(rngState, 1103515245) + 12345) & 0x7fffffff; return rngState / 0x7fffffff; };
 
 function mutateWeights(w: AiWeights): AiWeights {
   const n = { ...w };

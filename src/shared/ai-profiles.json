@@ -382,28 +382,7 @@
    "hand": 0,
    "tactic": 4,
    "reply": 0.5
-  },
-  "deck": [
-   "v_blade",
-   "v_choir",
-   "v_choir",
-   "v_faceless",
-   "v_false",
-   "v_false",
-   "v_herald",
-   "v_herald",
-   "v_knives",
-   "v_needle",
-   "v_phantom",
-   "v_projector",
-   "v_skimmer",
-   "v_smoke",
-   "v_stalker",
-   "v_twins",
-   "v_weaver",
-   "v_whisper",
-   "v_whisper"
-  ]
+  }
  },
  "hush/balanced": {
   "weights": {

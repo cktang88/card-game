@@ -41,7 +41,9 @@ export function tunedDeck(f: Faction, arch?: string): string[] {
 export const AI_TUNING = { tacticBonus: DEFAULT_WEIGHTS.tactic };
 
 function weightsFor(o: AiOptions): AiWeights {
-  return { ...DEFAULT_WEIGHTS, tactic: AI_TUNING.tacticBonus, ...(o.profile ? AI_PROFILES[o.profile]?.weights : {}), ...o.weights };
+  // The --tactic-bonus flag (AI_TUNING) must win over a profile's stored value, or the flag is silently dead.
+  const flag = AI_TUNING.tacticBonus !== DEFAULT_WEIGHTS.tactic ? { tactic: AI_TUNING.tacticBonus } : {};
+  return { ...DEFAULT_WEIGHTS, ...(o.profile ? AI_PROFILES[o.profile]?.weights : {}), ...flag, ...o.weights };
 }
 
 /** Deterministic per-decision RNG (so sims are reproducible and paired-seed comparisons work). */
@@ -74,26 +76,34 @@ export function evaluate(s: GameState, p: PlayerId, w: AiWeights = DEFAULT_WEIGH
   return v;
 }
 
-/** Replace the opponent's hidden hand with a sample from their unseen cards (hand ∪ deck). */
+/**
+ * Replace everything the viewer cannot see with a sample from what is unseen: the opponent's hand, their
+ * deck order, and the identity of every cloaked enemy formation. Honesty rules (tests/ai-honesty.ts):
+ *  - the sample must not depend on WHICH unseen card is in the hand / the deck / under a cloak, only on the
+ *    unseen multiset (so the pool is sorted canonically before shuffling, and uids are re-issued);
+ *  - a cloaked formation is one unknown card whatever it really is (a phantom token, a stack, a real unit):
+ *    its real cards go back into the pool (tokens are not in any deck, so they just vanish).
+ */
 function determinize(s: GameState, p: PlayerId, rnd: () => number): GameState {
   const c = structuredClone({ ...s, log: [], events: [] }) as GameState;
   const op = c.players[other(p)];
-  const pool = [...op.hand, ...op.deck];
+  const hidden = c.formations.filter((f) => f.owner !== p && f.cloaked && f.cards.length);
+  const pool: { id: string }[] = [...op.hand, ...op.deck].map((x) => ({ id: x.id }));
+  for (const f of hidden) for (const x of f.cards) if (!x.token) pool.push({ id: x.id });
+  pool.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)); // canonical order → identical samples for identical unseen sets
   const shuf = () => { for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; } };
   shuf();
-  // Cloaked enemy units are unknown too: swap each with a random unseen unit card (Nerve as if fresh).
-  for (const f of c.formations) {
-    if (f.owner === p || !f.cloaked || f.cards.length !== 1 || def(f.cards[0]).cls === 'Illusion') continue;
-    const j = pool.findIndex((x) => !isTactic(def(x)) && def(x).cls !== 'Structure');
-    if (j < 0) continue;
-    const real = f.cards[0];
-    f.cards[0] = { ...pool[j], uid: real.uid, dmg: 0 };
-    pool[j] = { ...real, uid: pool[j].uid, dmg: 0 };
+  for (const f of hidden) {
+    const j = pool.findIndex((x) => { const d = def(x as never); return !isTactic(d) && d.cls !== 'Structure'; });
+    const pick = j >= 0 ? pool.splice(j, 1)[0].id : 'v_phantom';
+    f.cards = [{ uid: c.nextId++, id: pick, dmg: 0, ...(j >= 0 ? {} : { token: true }) }];
     f.morale = Math.min(maxNerve(f), def(f.cards[0]).nerve);
   }
   shuf();
-  op.hand = pool.slice(0, op.hand.length);
-  op.deck = pool.slice(op.hand.length);
+  const fresh = (x: { id: string }) => ({ uid: c.nextId++, id: x.id, dmg: 0 });
+  const nHand = op.hand.length;
+  op.hand = pool.slice(0, nHand).map(fresh);
+  op.deck = pool.slice(nHand).map(fresh);
   return c;
 }
 
@@ -150,12 +160,15 @@ function greedy(s: GameState, p: PlayerId, w: AiWeights, rnd: () => number, maxC
 }
 
 export function aiOrders(s: GameState, p: PlayerId, opts: AiOptions = {}): Orders {
+  if (s.phase === 'over') return { deploys: [] };
   const w = weightsFor(opts);
   const rnd = mkRng(s.rng ^ (s.round * 7919) ^ (p * 104729));
   const cand = opts.candidates ?? (opts.level === 'steel' ? 6 : 5);
   let orders: Orders;
+  let adv: number; // how far ahead we think we are (escalate decision)
   if (opts.level !== 'steel') {
     orders = greedy(s, p, w, rnd, cand, (o) => evaluate(simulate(s, p, o), p, w), opts.stats);
+    adv = evaluate(s, p, w);
   } else {
     // Predict the opponent's reply on K sampled worlds, then best-respond to the mixture.
     const K = opts.samples ?? 2;
@@ -174,8 +187,9 @@ export function aiOrders(s: GameState, p: PlayerId, opts: AiOptions = {}): Order
       return v / K;
     };
     orders = greedy(s, p, w, rnd, cand, score, opts.stats);
+    // Judge the position on the sampled worlds, never on the real state (it holds the cloaked units' true stats).
+    adv = worlds.reduce((a, { ws }) => a + evaluate(ws, p, w), 0) / K;
   }
-  const adv = evaluate(s, p, w);
   orders.escalate = !s.players[p].escalateUsed && s.round >= 3 && adv > 35;
   return orders;
 }
@@ -190,6 +204,10 @@ function heuristic(s: GameState, p: PlayerId, h: Pos, ranged: boolean): number {
 }
 
 export function aiWantsRetreat(s: GameState, p: PlayerId): boolean {
-  const adv = evaluate(s, p);
-  return s.phase === 'orders' && s.round >= 5 && s.pendingEscalations > 0 && adv < -90;
+  // Escalation is folded into `stakes` as soon as the round resolves, so `pendingEscalations` is always 0 during
+  // the orders phase; the old `pendingEscalations > 0` guard made retreat unreachable. Use the raised stakes.
+  if (s.phase !== 'orders' || s.round < 5 || s.stakes <= 1) return false;
+  const rnd = mkRng(s.rng ^ (s.round * 6007) ^ (p * 15485863));
+  const adv = (evaluate(determinize(s, p, rnd), p) + evaluate(determinize(s, p, rnd), p)) / 2; // honest: not the real cloaked units
+  return adv < -90;
 }

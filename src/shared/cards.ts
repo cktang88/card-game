@@ -300,6 +300,6 @@ export function starterDeck(f: Faction, arch?: string): string[] {
   const rest = pool.filter((d) => !d.arch.includes(arch)).sort((a, b) => a.cost - b.cost);
   const deck: string[] = [];
   for (const d of core) deck.push(d.id, d.id);
-  for (const d of rest) if (deck.length < 20) deck.push(d.id);
+  for (let copy = 0; copy < 2 && deck.length < 20; copy++) for (const d of rest) if (deck.length < 20) deck.push(d.id);
   return deck.slice(0, 20);
 }

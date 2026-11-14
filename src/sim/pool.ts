@@ -10,6 +10,7 @@ let nextId = 1;
 
 export function startPool(argv: string[], n = cpus().length, worker = './worker.ts') {
   const path = fileURLToPath(new URL(worker, import.meta.url));
+  stopPool(); // never leak a previous pool's processes
   workers = Array.from({ length: n }, () => fork(path, argv, { execArgv: ['--import', 'tsx'] }));
 }
 export function stopPool() { for (const w of workers) w.kill(); workers = []; }
@@ -21,9 +22,17 @@ export async function runJobs<J = Job, R = GameResult>(jobs: J[]): Promise<R[]> 
     const mine = jobs.slice(i * chunk, (i + 1) * chunk);
     if (!mine.length) return Promise.resolve([] as R[]);
     const id = nextId++;
-    return new Promise<R[]>((res) => {
-      const on = (m: { id: number; results: R[] }) => { if (m.id === id) { w.off('message', on); res(m.results); } };
+    // A crashed worker (or a thrown game) must fail the run, not hang it forever.
+    return new Promise<R[]>((res, rej) => {
+      const cleanup = () => { w.off('message', on); w.off('exit', onExit); };
+      const on = (m: { id: number; results?: R[]; error?: string }) => {
+        if (m.id !== id) return;
+        cleanup();
+        if (m.error !== undefined) rej(new Error('sim worker: ' + m.error)); else res(m.results!);
+      };
+      const onExit = (code: number | null) => { cleanup(); rej(new Error(`sim worker exited (code ${code}) before replying`)); };
       w.on('message', on);
+      w.on('exit', onExit);
       w.send({ id, jobs: mine });
     });
   }));
